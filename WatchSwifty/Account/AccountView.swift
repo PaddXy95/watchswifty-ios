@@ -49,6 +49,9 @@ private struct AccountContent: View {
                     Text("Dein eigener TMDB-Lesezugriffstoken für Suche und Titeldaten.")
                 }
             }
+            if let prefs = store.notifications.value {
+                NotificationSections(store: store, prefs: prefs) { sheet = .webhookKey }
+            }
             Section {
                 NavigationLink("Geräte") { DevicesView(store: store) }
                 NavigationLink("Beobachtete Serien") { FollowedView(store: store) }
@@ -71,6 +74,7 @@ private struct AccountContent: View {
             case .password: PasswordSheet(store: store)
             case .email: EmailSheet(store: store)
             case .tmdb: TMDBTokenSheet(store: store, onSaved: {})
+            case .webhookKey: WebhookKeySheet(store: store)
             }
         }
         .alert("Das hat nicht geklappt", isPresented: Binding(get: { store.actionError != nil },
@@ -94,7 +98,7 @@ private struct AccountContent: View {
 }
 
 private enum AccountSheet: Identifiable {
-    case password, email, tmdb
+    case password, email, tmdb, webhookKey
     var id: Self { self }
 }
 

@@ -11,12 +11,15 @@ private extension String {
     }
 }
 
-/// „System“: version and the update check.
+/// „System“: version, the update check and Benachrichtigungen (daily run, KNot webhook address).
 @MainActor @Observable
 public final class SystemStore {
     public private(set) var system = Loadable<Components.Schemas.System>()
+    /// Stays empty on a server without notifications.
+    public private(set) var notifications = Loadable<Components.Schemas.AdminNotificationSettings>()
     public private(set) var busy = false
     public var actionError: UserFacingError?
+    public var notice: String?
 
     @ObservationIgnored private let api: any APIProtocol
     @ObservationIgnored private let app: AppModel
@@ -28,10 +31,31 @@ public final class SystemStore {
 
     public func load() async {
         system.begin()
+        notifications.begin()
         let version = app.changeVersion
         let api = api
-        guard let result = await runCatching({ try await api.getSystem().ok.body.json }) else { return system.cancel() }
-        system.finish(result, at: version)
+        async let systemResult = runCatching { try await api.getSystem().ok.body.json }
+        async let notificationsResult = runCatching { try await api.getNotificationSettings().ok.body.json }
+        if let result = await systemResult { system.finish(result, at: version) } else { system.cancel() }
+        if let result = await notificationsResult { notifications.finish(result, at: version) } else { notifications.cancel() }
+    }
+
+    /// Empty `webhookURL` turns the webhook off.
+    public func saveNotifications(dailyRunTime: ClockTime, webhookURL: String) async -> Bool {
+        let update = Components.Schemas.AdminNotificationSettingsUpdate(dailyRunTime: dailyRunTime.text, webhookUrl: webhookURL.nonEmpty)
+        guard let saved = await perform({ try await $0.setNotificationSettings(body: .json(update)).ok.body.json }) else { return false }
+        notifications.value = saved
+        notice = "Benachrichtigungen gespeichert."
+        return true
+    }
+
+    /// Keeps the stored time.
+    public func removeWebhook() async {
+        guard let current = notifications.value else { return }
+        let update = Components.Schemas.AdminNotificationSettingsUpdate(dailyRunTime: current.dailyRunTime, webhookUrl: nil)
+        guard let saved = await perform({ try await $0.setNotificationSettings(body: .json(update)).ok.body.json }) else { return }
+        notifications.value = saved
+        notice = "Webhook entfernt."
     }
 
     public func setUpdateCheck(_ enabled: Bool) async {
@@ -43,17 +67,18 @@ public final class SystemStore {
     }
 
     private func replace(_ operation: @escaping (any APIProtocol) async throws -> Components.Schemas.System) async {
-        guard !busy else { return }
+        if let value = await perform(operation) { system.value = value }
+    }
+
+    private func perform<T: Sendable>(_ operation: @escaping (any APIProtocol) async throws -> T) async -> T? {
+        guard !busy else { return nil }
         busy = true
         defer { busy = false }
         let api = api
         switch await runCatching({ try await operation(api) }) {
-        case .success(let value)?:
-            system.value = value
-        case .failure(let error)?:
-            actionError = error
-        case nil:
-            break
+        case .success(let value)?: return value
+        case .failure(let error)?: actionError = error; return nil
+        case nil: return nil
         }
     }
 }

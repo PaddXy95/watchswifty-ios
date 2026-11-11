@@ -3,11 +3,13 @@ import Observation
 import OpenAPIRuntime
 import WatchSwiftyClient
 
-/// „Konto“: password, e-mail, TMDB token, devices, followed series.
+/// „Konto“: password, e-mail, TMDB token, notifications, devices, followed series.
 @MainActor @Observable
 public final class AccountStore {
     public private(set) var devices = Loadable<[Components.Schemas.Device]>()
     public private(set) var followed = Loadable<[Components.Schemas.FollowedSeries]>()
+    /// Konto → Benachrichtigungen; stays empty on a server without notifications.
+    public private(set) var notifications = Loadable<Components.Schemas.NotificationPrefs>()
     public private(set) var busy = false
     public var actionError: UserFacingError?
     /// Short confirmation after a successful change.
@@ -25,6 +27,8 @@ public final class AccountStore {
     /// Only accounts with a password, and only while the server allows password login (as in the web).
     public var canChangePassword: Bool { me.map { $0.hasPassword && $0.passwordLogin } ?? false }
     public var currentDeviceID: String? { app.token?.deviceID }
+    /// Setting or removing the KNot key asks for the current password on accounts that have one (SSO-only ones have none).
+    public var webhookKeyNeedsPassword: Bool { me?.hasPassword ?? true }
     /// Konto page in the browser (manual tokens, SSO linking).
     public var webAccountURL: URL? { app.server?.baseURL.appending(path: "account") }
 
@@ -35,12 +39,15 @@ public final class AccountStore {
     public func load() async {
         devices.begin()
         followed.begin()
+        notifications.begin()
         let version = app.changeVersion
         let api = api
         async let devicesResult = runCatching { try await api.listDevices().ok.body.json }
         async let followedResult = runCatching { try await api.getFollowed().ok.body.json }
+        async let notificationsResult = runCatching { try await api.getNotificationPrefs().ok.body.json }
         if let result = await devicesResult { devices.finish(result, at: version) } else { devices.cancel() }
         if let result = await followedResult { followed.finish(result, at: version) } else { followed.cancel() }
+        if let result = await notificationsResult { notifications.finish(result, at: version) } else { notifications.cancel() }
         await app.refreshMe()
     }
 
@@ -72,6 +79,51 @@ public final class AccountStore {
         }
     }
 
+    /// Saves the three switches and the channel at once (no password). The change shows right away and is undone when
+    /// saving fails. Without a choice between channels the stored `channel` is sent unchanged.
+    public func updateNotifications(_ change: (inout Components.Schemas.NotificationPrefsUpdate) -> Void) async {
+        guard !busy, let current = notifications.value else { return }
+        var update = current.update
+        change(&update)
+        guard update != current.update else { return }
+        var shown = current
+        shown.announced = update.announced
+        shown.soon = update.soon
+        shown.today = update.today
+        shown.channel = update.channel
+        if current.availableChannels.contains(update.channel) { shown.activeChannel = update.channel }
+        notifications.value = shown
+        let body = update
+        if let saved = await run({ try await $0.setNotificationPrefs(body: .json(body)).ok.body.json }) {
+            notifications.value = saved
+        } else if notifications.value == shown {
+            notifications.value = current
+        }
+    }
+
+    /// Stores the KNot key (sealed on the server, never shown again).
+    public func setWebhookKey(_ key: String, currentPassword: String) async -> Bool {
+        let body = Components.Schemas.WebhookKeyChange(key: key.trimmingCharacters(in: .whitespacesAndNewlines),
+                                                       currentPassword: webhookKeyNeedsPassword ? currentPassword : nil)
+        guard let saved = await run({ try await $0.setWebhookKey(body: .json(body)).ok.body.json }) else { return false }
+        notifications.value = saved
+        notice = "Webhook-Schlüssel gespeichert."
+        return true
+    }
+
+    public func deleteWebhookKey(currentPassword: String) async -> Bool {
+        let body: Operations.deleteWebhookKey.Input.Body? = webhookKeyNeedsPassword ? .json(.init(currentPassword: currentPassword)) : nil
+        guard let saved = await run({ try await $0.deleteWebhookKey(body: body).ok.body.json }) else { return false }
+        notifications.value = saved
+        notice = "Webhook-Schlüssel entfernt."
+        return true
+    }
+
+    /// Sends a short message over the channel in use; the server's reason is shown when that fails.
+    public func sendTestNotification() async {
+        _ = await perform(notice: "Testnachricht gesendet.") { _ = try await $0.sendTestNotification().noContent }
+    }
+
     /// Signs out another device; this device is signed out completely.
     public func revokeDevice(id: String) async {
         if id.caseInsensitiveCompare(currentDeviceID ?? "") == .orderedSame {
@@ -99,18 +151,28 @@ public final class AccountStore {
     }
 
     private func perform(notice message: String?, _ operation: @escaping (any APIProtocol) async throws -> Void) async -> Bool {
-        guard !busy else { return false }
+        guard await run(operation) != nil else { return false }
+        notice = message
+        return true
+    }
+
+    /// One change at a time; failures go to `actionError`, `nil` also when cancelled.
+    private func run<T: Sendable>(_ operation: @escaping (any APIProtocol) async throws -> T) async -> T? {
+        guard !busy else { return nil }
         busy = true
         defer { busy = false }
         let api = app.api
-        guard let result = await runCatching({ try await operation(api) }) else { return false }
-        switch result {
-        case .success:
-            notice = message
-            return true
-        case .failure(let error):
-            actionError = error
-            return false
+        switch await runCatching({ try await operation(api) }) {
+        case .success(let value)?: return value
+        case .failure(let error)?: actionError = error; return nil
+        case nil: return nil
         }
+    }
+}
+
+extension Components.Schemas.NotificationPrefs {
+    /// The stored choice as an update (switches and the stored, not the active, channel).
+    public var update: Components.Schemas.NotificationPrefsUpdate {
+        .init(announced: announced, soon: soon, today: today, channel: channel)
     }
 }
