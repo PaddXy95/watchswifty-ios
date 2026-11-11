@@ -1,0 +1,22 @@
+# Demo instance for Apple's TestFlight beta review – never the real instance (reviewers must not see real users' data).
+# Own container, own volume. Put it behind your reverse proxy under its own HTTPS host (e.g. demo.watch.example.de).
+#   DEMO_ADMIN_PASSWORD=… DEMO_TOKEN_KEY=$(openssl rand -base64 32) DEMO_ORIGIN=https://demo.watch.example.de \
+#     docker compose -f ops/demo/docker-compose.yml up -d
+# Mail stays unconfigured. After the first start: log in as `demo`, enter a TMDB token under Konto,
+# import Tests/AppTests/Fixtures/netflix-sample.csv from the server repo under Importe.
+services:
+  watchswifty-demo:
+    image: ghcr.io/paddxy95/watchswifty:latest
+    restart: unless-stopped
+    environment:
+      TOKEN_KEY: ${DEMO_TOKEN_KEY:?set DEMO_TOKEN_KEY}
+      PUBLIC_ORIGIN: ${DEMO_ORIGIN:?set DEMO_ORIGIN}
+      ADMIN_USERNAME: demo
+      ADMIN_PASSWORD: ${DEMO_ADMIN_PASSWORD:?set DEMO_ADMIN_PASSWORD}
+      TZ: Europe/Berlin
+    volumes:
+      - watchswifty-demo-data:/data
+    ports:
+      - "127.0.0.1:8090:8080"
+volumes:
+  watchswifty-demo-data:
