@@ -31,6 +31,11 @@ public final class AppModel {
 
     @ObservationIgnored let environment: AppEnvironment
     @ObservationIgnored private let currentToken = TokenBox()
+    /// Version check and account refresh after `start()`; they run in the background so a slow or unreachable server
+    /// never blocks the (cached) start page.
+    @ObservationIgnored private(set) var startupChecks: Task<Void, Never>?
+
+    public var snapshot: SnapshotCache { environment.snapshot }
 
     public init(environment: AppEnvironment, defaultDeviceName: String = "iPhone") {
         self.environment = environment
@@ -44,25 +49,28 @@ public final class AppModel {
         guard let stored = environment.settings.string(forKey: Self.serverKey),
               let server = try? ServerAddress.parse(stored)
         else {
+            // Fresh install: iOS keeps Keychain items after an app is deleted, so a token found now belongs to an
+            // earlier installation – drop it together with any cached start page.
+            try? environment.tokenStore.delete()
+            environment.snapshot.clear()
             phase = .needsServer
             return
         }
         use(server: server)
         token = try? environment.tokenStore.load()
         currentToken.set(token?.token)
+        phase = token == nil ? .needsLogin : .ready
 
-        if let version = try? await api.getVersion().ok.body.json.version,
-           case .tooOld(let serverVersion, let minimum) = ServerVersion.check(serverVersion: version,
-                                                                              minimum: environment.minimumServerVersion) {
-            phase = .serverTooOld(server: serverVersion, minimum: minimum)
-            return
+        startupChecks = Task { [weak self] in
+            guard let self else { return }
+            if let version = try? await self.api.getVersion().ok.body.json.version,
+               case .tooOld(let serverVersion, let minimum) = ServerVersion.check(serverVersion: version,
+                                                                                  minimum: self.environment.minimumServerVersion) {
+                self.phase = .serverTooOld(server: serverVersion, minimum: minimum)
+                return
+            }
+            if self.phase == .ready { await self.refreshMe() }
         }
-        guard token != nil else {
-            phase = .needsLogin
-            return
-        }
-        phase = .ready
-        await refreshMe()
     }
 
     /// Checks the entered address („Weiter“ on the first screen) and remembers it.
@@ -91,6 +99,7 @@ public final class AppModel {
     public func forgetServer() async {
         if token != nil { _ = try? await api.revokeCurrentToken() }
         clearToken()
+        environment.snapshot.clear()
         environment.settings.removeObject(forKey: Self.serverKey)
         server = nil
         phase = .needsServer
@@ -118,6 +127,7 @@ public final class AppModel {
     public func signOut() async {
         _ = try? await api.revokeCurrentToken()
         clearToken()
+        environment.snapshot.clear()
         phase = .needsLogin
     }
 

@@ -5,13 +5,14 @@ import WatchSwiftyClient
 
 @Suite struct SeasonExpansionTests {
     /// seasons: (number, watched episodes, aired episodes, unaired episodes)
-    func detail(_ seasons: [(Int, Int, Int, Int)]) throws -> Components.Schemas.SeriesDetail {
+    func detail(_ seasons: [(Int, Int, Int, Int)], open: Int? = nil) throws -> Components.Schemas.SeriesDetail {
         let seasonJSON = seasons.map { number, watched, aired, unaired in
             let episodes = (0..<(aired + unaired)).map { index in
                 let watches = index < watched ? #"[{"id":"0F2B4D63-8E57-4E0A-9C5B-3B1E2D4F5A6B","origin":"manual"}]"# : "[]"
                 return #"{"season":\#(number),"number":\#(index + 1),"name":"F","aired":\#(index < aired),"watches":\#(watches)}"#
             }
-            return #"{"number":\#(number),"title":"Staffel \#(number)","watchedCount":\#(watched),"episodes":[\#(episodes.joined(separator: ","))]}"#
+            let isOpen = open.map { #","isOpen":\#($0 == number)"# } ?? ""
+            return #"{"number":\#(number),"title":"Staffel \#(number)","watchedCount":\#(watched)\#(isOpen),"episodes":[\#(episodes.joined(separator: ","))]}"#
         }
         let json = #"{"tmdbId":1,"name":"X","links":{"tmdb":"t","imdb":"i","rottenTomatoes":"r"},"hidden":false,"followed":false,"seasons":[\#(seasonJSON.joined(separator: ","))]}"#
         return try JSONDecoder().decode(Components.Schemas.SeriesDetail.self, from: Data(json.utf8))
@@ -33,5 +34,17 @@ import WatchSwiftyClient
 
     @Test func completedSeriesStartsCollapsed() throws {
         #expect(SeriesStore.initiallyExpanded(try detail([(1, 8, 8, 0), (2, 8, 8, 0)])).isEmpty)
+    }
+
+    @Test func specialsStayCollapsed() throws {
+        #expect(SeriesStore.initiallyExpanded(try detail([(0, 0, 3, 0), (1, 2, 8, 0)])) == [1])
+        #expect(SeriesStore.initiallyExpanded(try detail([(0, 0, 3, 0), (1, 8, 8, 0)])).isEmpty)
+        #expect(SeriesStore.initiallyExpanded(try detail([(1, 8, 8, 0), (0, 0, 0, 2)])).isEmpty)
+    }
+
+    @Test func usesServerOpenSeasonWhenGiven() throws {
+        // The server skips an earlier unwatched episode (next = after the highest watched one).
+        #expect(SeriesStore.initiallyExpanded(try detail([(1, 2, 8, 0), (2, 8, 8, 0), (3, 1, 8, 0)], open: 3)) == [3])
+        #expect(SeriesStore.initiallyExpanded(try detail([(0, 0, 3, 0), (1, 8, 8, 0)], open: 0)).isEmpty)
     }
 }

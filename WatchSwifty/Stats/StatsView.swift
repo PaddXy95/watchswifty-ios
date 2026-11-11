@@ -33,6 +33,7 @@ private struct StatsContent: View {
             }
         }
         .refreshable { await store.load() }
+        .staleBanner(store.stats.value == nil ? nil : store.stats.error) { await store.load() }
         .toolbar {
             if let years = store.stats.value?.years, !years.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {

@@ -41,6 +41,7 @@ private struct SeriesContent: View {
         .navigationBarTitleDisplayMode(.inline)
         .toolbar { if let detail = store.detail.value { menu(detail) } }
         .refreshable { await store.load() }
+        .staleBanner(store.detail.value == nil ? nil : store.detail.error) { await store.load() }
         .onAppear { Task { await store.reloadIfStale() } }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.load() } } }
         .onChange(of: store.detail.value?.tmdbId, initial: true) {
@@ -71,6 +72,27 @@ private struct SeriesContent: View {
 
     private func list(_ detail: Components.Schemas.SeriesDetail) -> some View {
         List {
+            if let next = detail.next {
+                Section {
+                    HStack(spacing: 12) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("Als Nächstes").font(.caption).foregroundStyle(.secondary)
+                            Text("S\(next.season)E\(next.number) · \(next.name)").font(.headline).lineLimit(2)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .contentShape(Rectangle())
+                        .onTapGesture { selected = EpisodeTarget(season: next.season, number: next.number) }
+                        Button("Gesehen") {
+                            Task {
+                                await store.markNext()
+                                if store.actionError == nil { feedback += 1 }
+                            }
+                        }
+                        .buttonStyle(.borderedProminent)
+                        .tint(.green)
+                    }
+                }
+            }
             Section {
                 TitleHeader(posterPath: detail.posterPath, title: detail.name,
                             subtitle: [detail.year.map(String.init), detail.status].compactMap { $0 }.joined(separator: " · "),
@@ -94,8 +116,12 @@ private struct SeriesContent: View {
                         .tint(.primary)
                         .swipeActions(edge: .leading) {
                             if episode.aired {
-                                Button("Gesehen") {
-                                    Task { await store.markEpisode(season: season.number, number: episode.number, choice: WatchChoice()); feedback += 1 }
+                                Button(episode.watches.isEmpty ? "Gesehen" : "Erneut") {
+                                    Task {
+                                        await store.markEpisode(season: season.number, number: episode.number,
+                                                                choice: .quick(alreadyWatched: !episode.watches.isEmpty))
+                                        feedback += 1
+                                    }
                                 }
                                 .tint(.green)
                                 Button("Bis hier") {

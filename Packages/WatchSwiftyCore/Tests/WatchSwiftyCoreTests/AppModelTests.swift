@@ -15,6 +15,7 @@ import WatchSwiftyClient
         transport.on(.get, "/api/v1/version", json: 200, #"{"version":"0.3.2"}"#)
         let model = AppModel(environment: Fixtures.environment(transport: transport, token: Fixtures.token))
         await model.start()
+        await model.startupChecks?.value
         #expect(model.phase == .serverTooOld(server: "0.3.2", minimum: "0.4.0"))
     }
 
@@ -24,6 +25,7 @@ import WatchSwiftyClient
         transport.on(.get, "/api/v1/me", json: 200, Fixtures.me)
         let model = AppModel(environment: Fixtures.environment(transport: transport, token: Fixtures.token))
         await model.start()
+        await model.startupChecks?.value
         #expect(model.phase == .ready)
         #expect(model.me?.username == "pat")
         #expect(model.server == Fixtures.server)
@@ -153,6 +155,7 @@ import WatchSwiftyClient
         let env = Fixtures.environment(transport: transport, token: Fixtures.token)
         let model = AppModel(environment: env)
         await model.start()
+        await model.startupChecks?.value
         await model.forgetServer()
         #expect(model.phase == .needsServer)
         #expect(env.settings.string(forKey: AppModel.serverKey) == nil)
@@ -173,5 +176,38 @@ import WatchSwiftyClient
         let model = AppModel(environment: Fixtures.environment(transport: FakeTransport()))
         model.didChange()
         #expect(model.changeVersion == 1)
+    }
+
+    @Test func startIsReadyBeforeVersionAnswers() async {
+        let transport = FakeTransport()
+        let gate = Gate()
+        transport.on(.get, "/api/v1/version") { _, _ in
+            await gate.wait()
+            return FakeTransport.json(200, #"{"version":"0.3.2"}"#)
+        }
+        let model = AppModel(environment: Fixtures.environment(transport: transport, token: Fixtures.token))
+        await model.start()
+        #expect(model.phase == .ready)        // cached start page visible at once, even if the server hangs
+        gate.release()
+        await model.startupChecks?.value
+        #expect(model.phase == .serverTooOld(server: "0.3.2", minimum: "0.4.0"))
+    }
+
+    @Test func signOutClearsSnapshot() async throws {
+        let transport = FakeTransport()
+        transport.on(.delete, "/api/v1/auth/token") { _, _ in FakeTransport.empty(204) }
+        let model = await Fixtures.readyModel(transport)
+        model.snapshot.save(try JSONDecoder().decode(Components.Schemas.ContinueWatching.self,
+                                                     from: Data(#"{"cards":[],"olderCount":0}"#.utf8)))
+        await model.signOut()
+        #expect(model.snapshot.load() == nil)
+    }
+
+    @Test func freshInstallDeletesLeftoverToken() async throws {
+        let store = InMemoryTokenStore(Fixtures.token)   // the Keychain survives deleting the app
+        let model = AppModel(environment: Fixtures.environment(transport: FakeTransport(), server: nil, tokenStore: store))
+        await model.start()
+        #expect(model.phase == .needsServer)
+        #expect(try store.load() == nil)
     }
 }

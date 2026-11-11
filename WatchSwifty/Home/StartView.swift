@@ -12,7 +12,7 @@ struct StartView: View {
         }
         .navigationTitle("Start")
         .task {
-            if store == nil { store = HomeStore(api: model.api, app: model, snapshot: .live()) }
+            if store == nil { store = HomeStore(api: model.api, app: model, snapshot: model.snapshot) }
             await store?.load()
         }
     }
@@ -29,7 +29,7 @@ private struct StartContent: View {
                 ErrorView(error: error) { await store.load() }
             } else if store.cards.value == nil {
                 ListSkeleton(rows: 6, poster: true)
-            } else if let cards = store.cards.value, cards.cards.isEmpty, isEmptyNotes {
+            } else if store.isEmpty {
                 ContentUnavailableView("Nichts zum Weiterschauen", systemImage: "tv",
                                        description: Text("Suche eine Serie und markiere die erste Folge als gesehen."))
             } else {
@@ -37,6 +37,7 @@ private struct StartContent: View {
             }
         }
         .refreshable { await store.load() }
+        .staleBanner(store.cards.value == nil ? nil : store.cards.error) { await store.load() }
         .onAppear { Task { await store.reloadIfStale() } }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.load() } } }
         .alert("Das hat nicht geklappt", isPresented: Binding(get: { store.actionError != nil },
@@ -46,11 +47,6 @@ private struct StartContent: View {
             Text(store.actionError?.message ?? "")
         }
         .sensoryFeedback(.success, trigger: feedback)
-    }
-
-    private var isEmptyNotes: Bool {
-        guard let notes = store.notes.value else { return true }
-        return notes.newEpisodes.isEmpty && notes.upcoming.isEmpty
     }
 
     private var list: some View {
@@ -145,14 +141,15 @@ struct ContinueCardRow: View {
             Spacer()
             Button(action: onWatched) {
                 if busy {
-                    ProgressView()
+                    ProgressView().controlSize(.small)
                 } else {
-                    Image(systemName: "checkmark.circle").font(.title2)
+                    Text("Gesehen")
                 }
             }
-            .buttonStyle(.borderless)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .tint(.green)
             .disabled(busy)
-            .accessibilityLabel("Gesehen")
         }
     }
 }

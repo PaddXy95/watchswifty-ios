@@ -116,4 +116,17 @@ import WatchSwiftyClient
         await store.setShowAll(true)
         #expect(transport.requests.first { $0.path == "/api/v1/continue-watching" }?.query == "all=true")
     }
+
+    @Test func startNotEmptyWithOlderCards() async {
+        let transport = FakeTransport()
+        transport.on(.get, "/api/v1/continue-watching", json: 200, #"{"cards":[],"olderCount":4}"#)
+        transport.on(.get, "/api/v1/notes", json: 200, #"{"newEpisodes":[],"upcoming":[]}"#)
+        let model = await Fixtures.readyModel(transport)
+        let store = HomeStore(api: model.api, app: model, snapshot: snapshot())
+        await store.load()
+        #expect(!store.isEmpty)
+        transport.on(.get, "/api/v1/continue-watching", json: 200, #"{"cards":[],"olderCount":0}"#)
+        await store.load()
+        #expect(store.isEmpty)
+    }
 }

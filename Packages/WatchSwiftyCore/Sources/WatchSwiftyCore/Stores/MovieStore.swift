@@ -45,6 +45,7 @@ public final class MovieStore {
     }
 
     public func setComment(_ comment: String) async {
+        while busy { try? await Task.sleep(for: .milliseconds(20)) }   // never drop a comment (see SeriesStore)
         await mutate { try await $0.setMovieComment(path: .init(tmdbID: self.tmdbID), body: .json(.init(comment: comment))).ok.body.json }
     }
 

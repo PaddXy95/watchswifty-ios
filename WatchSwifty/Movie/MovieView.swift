@@ -37,9 +37,10 @@ private struct MovieContent: View {
         .navigationTitle(store.detail.value?.name ?? "")
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await store.load() }
+        .staleBanner(store.detail.value == nil ? nil : store.detail.error) { await store.load() }
         .onAppear { Task { await store.reloadIfStale() } }
         .sheet(isPresented: $showWatchSheet) {
-            WatchSheet(title: store.detail.value?.name ?? "") { choice in
+            WatchSheet(title: store.detail.value?.name ?? "", rewatch: !(store.detail.value?.watches.isEmpty ?? true)) { choice in
                 Task { await store.mark(choice: choice); feedback += 1 }
             }
         }
@@ -50,10 +51,8 @@ private struct MovieContent: View {
             Text(store.actionError?.message ?? "")
         }
         .sensoryFeedback(.success, trigger: feedback)
-        .confirmationDialog("Als nicht gesehen markieren?", isPresented: $confirmUnmark, titleVisibility: .visible) {
-            Button("Nicht gesehen", role: .destructive) { Task { await store.unmark() } }
-        } message: {
-            Text("Die Sichtung von „\(store.detail.value?.name ?? "")“ wird gelöscht.")
+        .confirmationDialog("Alle Sichtungen dieses Films löschen?", isPresented: $confirmUnmark, titleVisibility: .visible) {
+            Button("Löschen", role: .destructive) { Task { await store.unmark() } }
         }
     }
 

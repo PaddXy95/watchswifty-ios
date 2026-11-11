@@ -26,10 +26,16 @@ public final class SeriesStore {
     /// Seasons shown open when the page appears: the first season with an aired, unwatched episode; when everything
     /// aired is watched, the season still airing; a finished series starts collapsed.
     public nonisolated static func initiallyExpanded(_ detail: Components.Schemas.SeriesDetail) -> Set<Int> {
-        if let next = detail.seasons.first(where: { season in season.episodes.contains { $0.aired && $0.watches.isEmpty } }) {
+        // Season 0 holds TMDB's specials: always collapsed, never the season to continue with.
+        let regular = detail.seasons.filter { $0.number != 0 }
+        // The server's choice (season of the next episode) when it sends one; own rule only for older servers.
+        if detail.seasons.contains(where: { $0.isOpen != nil }) {
+            return Set(regular.filter { $0.isOpen == true }.map(\.number))
+        }
+        if let next = regular.first(where: { season in season.episodes.contains { $0.aired && $0.watches.isEmpty } }) {
             return [next.number]
         }
-        if let running = detail.seasons.first(where: { season in season.episodes.contains { !$0.aired } }) {
+        if let running = regular.first(where: { season in season.episodes.contains { !$0.aired } }) {
             return [running.number]
         }
         return []
@@ -46,6 +52,26 @@ public final class SeriesStore {
 
     public func reloadIfStale() async {
         if detail.isStale(app.changeVersion), !detail.isLoading { await load() }
+    }
+
+    /// „Gesehen“ on the next episode the server names (`detail.next`); the answer is a start card, so the series is
+    /// reloaded afterwards.
+    public func markNext() async {
+        guard !busy, let next = detail.value?.next else { return }
+        busy = true
+        defer { busy = false }
+        let api = api
+        let tmdbID = tmdbID
+        guard let result = await runCatching({
+            _ = try await api.markNextEpisode(path: .init(tmdbID: tmdbID), body: .json(.init(episodeId: next.episodeId)))
+        }) else { return }
+        switch result {
+        case .success:
+            app.didChange()
+            await load()
+        case .failure(let error):
+            actionError = error
+        }
     }
 
     public func markEpisode(season: Int, number: Int, choice: WatchChoice) async {
@@ -83,13 +109,20 @@ public final class SeriesStore {
     }
 
     public func setComment(_ comment: String) async {
+        await waitUntilIdle()
         await mutate { try await $0.setSeriesComment(path: .init(tmdbID: self.tmdbID), body: .json(.init(comment: comment))).ok.body.json }
     }
 
     public func setSeasonComment(season: Int, text: String) async {
+        await waitUntilIdle()
         await mutate {
             try await $0.setSeasonComment(path: .init(tmdbID: self.tmdbID, season: season), body: .json(.init(comment: text))).ok.body.json
         }
+    }
+
+    /// A comment must not be dropped by the double-tap guard: it waits for a running change instead.
+    private func waitUntilIdle() async {
+        while busy { try? await Task.sleep(for: .milliseconds(20)) }
     }
 
     private func mutate(_ operation: @escaping (any APIProtocol) async throws -> Components.Schemas.SeriesDetail) async {

@@ -63,6 +63,7 @@ private struct HistoryContent: View {
             }
         }
         .refreshable { await store.loadFirstPage() }
+        .staleBanner(store.items.isEmpty ? nil : store.error) { await store.loadFirstPage() }
         .onAppear { Task { await store.reloadIfStale() } }
         .sheet(item: $editing) { item in
             EditWatchSheet(item: item) { day, service in

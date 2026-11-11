@@ -13,6 +13,13 @@ public final class HomeStore {
     public private(set) var inFlight: Set<Int> = []
     public var actionError: UserFacingError?
 
+    /// Nothing to show at all – not even older paused series behind „Ältere anzeigen“.
+    public var isEmpty: Bool {
+        guard let value = cards.value else { return false }
+        let noNotes = notes.value.map { $0.newEpisodes.isEmpty && $0.upcoming.isEmpty } ?? true
+        return value.cards.isEmpty && value.olderCount == 0 && !showAll && noNotes
+    }
+
     @ObservationIgnored private let api: any APIProtocol
     @ObservationIgnored private let app: AppModel
     @ObservationIgnored private let snapshot: SnapshotCache

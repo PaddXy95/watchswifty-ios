@@ -65,5 +65,6 @@ struct ServerSetupView: View {
     ServerSetupView()
         .environment(AppModel(environment: AppEnvironment(tokenStore: InMemoryTokenStore(),
                                                           settings: UserDefaults(suiteName: "preview")!,
-                                                          transport: FakeTransport())))
+                                                          transport: FakeTransport(),
+                                                          snapshot: SnapshotCache(directory: FileManager.default.temporaryDirectory))))
 }

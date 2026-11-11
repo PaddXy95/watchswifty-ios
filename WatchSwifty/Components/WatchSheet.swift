@@ -9,7 +9,13 @@ struct WatchSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var date = Date()
     @State private var service: ServiceChoice = .lastUsed
-    @State private var rewatch = false
+    @State private var rewatch: Bool
+
+    init(title: String, rewatch: Bool = false, onSave: @escaping (WatchChoice) -> Void) {
+        self.title = title
+        self.onSave = onSave
+        _rewatch = State(initialValue: rewatch)
+    }
 
     var body: some View {
         NavigationStack {

@@ -46,6 +46,7 @@ private struct LibraryContent: View {
             }
         }
         .refreshable { await store.load() }
+        .staleBanner(store.entries.value == nil ? nil : store.entries.error) { await store.load() }
         .onAppear { Task { await store.reloadIfStale() } }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {

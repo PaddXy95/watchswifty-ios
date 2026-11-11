@@ -96,6 +96,12 @@ struct EpisodeSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { dismiss() } } }
             .onAppear { rewatch = !(episode?.watches.isEmpty ?? true) }
+            .alert("Das hat nicht geklappt", isPresented: Binding(get: { store.actionError != nil },
+                                                                    set: { if !$0 { store.actionError = nil } })) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(store.actionError?.message ?? "")
+            }
             .confirmationDialog("Als nicht gesehen markieren?", isPresented: $confirmUnmark, titleVisibility: .visible) {
                 Button("Nicht gesehen", role: .destructive) {
                     Task {

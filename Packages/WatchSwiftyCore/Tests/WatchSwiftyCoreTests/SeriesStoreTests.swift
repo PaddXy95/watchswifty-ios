@@ -102,4 +102,48 @@ import WatchSwiftyClient
         #expect(model.changeVersion == 7)
         #expect(Fixtures.jsonObject(transport.requests.last?.body)["comment"] as? String == "Stark")
     }
+
+    @Test func quickChoiceRewatchesWatchedEpisode() {
+        #expect(WatchChoice.quick(alreadyWatched: true).input.rewatch == true)
+        #expect(WatchChoice.quick(alreadyWatched: false).input.rewatch == nil)
+    }
+
+    @Test func commentSaveWaitsForRunningMutation() async {
+        let transport = FakeTransport()
+        let gate = Gate()
+        transport.on(.post, "/api/v1/tv/1/watch-all") { _, _ in
+            await gate.wait()
+            return FakeTransport.json(200, Fixtures.series(watched: true))
+        }
+        transport.on(.put, "/api/v1/tv/1/seasons/1/comment", json: 200, Fixtures.series(watched: true))
+        let model = await Fixtures.readyModel(transport)
+        let store = SeriesStore(tmdbID: 1, api: model.api, app: model)
+        let mark = Task { await store.markAll() }
+        await waitUntil { store.busy }
+        let comment = Task { await store.setSeasonComment(season: 1, text: "Stark") }
+        gate.release()
+        await mark.value
+        await comment.value
+        #expect(transport.requests.contains { $0.path == "/api/v1/tv/1/seasons/1/comment" })
+    }
+
+    @Test func markNextSendsEpisodeIdAndReloads() async {
+        let transport = FakeTransport()
+        let loads = Counter()
+        transport.on(.get, "/api/v1/tv/1") { _, _ in
+            loads.increment()
+            return FakeTransport.json(200, Fixtures.series(watched: loads.value > 1, next: loads.value == 1))
+        }
+        transport.on(.post, "/api/v1/tv/1/next") { _, _ in FakeTransport.empty(204) }
+        let model = await Fixtures.readyModel(transport)
+        let store = SeriesStore(tmdbID: 1, api: model.api, app: model)
+        await store.load()
+        #expect(store.detail.value?.next?.number == 2)
+        await store.markNext()
+        let body = Fixtures.jsonObject(transport.requests.first { $0.path == "/api/v1/tv/1/next" }?.body)
+        #expect(body["episodeId"] as? String == "11111111-0000-0000-0000-000000000002")
+        #expect(loads.value == 2)
+        #expect(store.detail.value?.next == nil)
+        #expect(model.changeVersion == 1)
+    }
 }

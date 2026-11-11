@@ -52,6 +52,10 @@ extension Fixtures {
     static let token = StoredToken(token: "ws_current", expiresAt: Date(timeIntervalSince1970: 1_801_828_800),
                                    deviceID: "6F9619FF-8B86-D011-B42D-00C04FC964FF")
 
+    static func snapshotCache() -> SnapshotCache {
+        SnapshotCache(directory: FileManager.default.temporaryDirectory.appending(path: "snapshot-\(UUID().uuidString)"))
+    }
+
     static func settings() -> UserDefaults {
         let defaults = UserDefaults(suiteName: "test-\(UUID().uuidString)")!
         return defaults
@@ -64,7 +68,7 @@ extension Fixtures {
         let settings = settings()
         if let server { settings.set(server.baseURL.absoluteString, forKey: AppModel.serverKey) }
         return AppEnvironment(tokenStore: tokenStore ?? InMemoryTokenStore(token), settings: settings,
-                              transport: transport, minimumServerVersion: minimum, now: { now })
+                              transport: transport, snapshot: snapshotCache(), minimumServerVersion: minimum, now: { now })
     }
 }
 
@@ -85,11 +89,12 @@ final class CountingTokenStore: TokenStore, @unchecked Sendable {
 }
 
 extension Fixtures {
-    static func series(watched: Bool = false, service: String = "netflix", rating: Int? = nil) -> String {
+    static func series(watched: Bool = false, service: String = "netflix", rating: Int? = nil, next: Bool = false) -> String {
         let watches = watched ? #"[{"id":"0F2B4D63-8E57-4E0A-9C5B-3B1E2D4F5A6B","day":"2026-11-07","service":"\#(service)","origin":"manual"}]"# : "[]"
         let ratingField = rating.map { #""rating":\#($0),"# } ?? ""
+        let nextField = next ? #""next":{"episodeId":"11111111-0000-0000-0000-000000000002","season":1,"number":2,"name":"Zwei"},"# : ""
         return #"""
-        {"tmdbId":1,"name":"Severance",\#(ratingField)"links":{"tmdb":"https://tmdb","imdb":"https://imdb","rottenTomatoes":"https://rt"},
+        {"tmdbId":1,"name":"Severance",\#(ratingField)\#(nextField)"links":{"tmdb":"https://tmdb","imdb":"https://imdb","rottenTomatoes":"https://rt"},
          "hidden":false,"followed":true,"lastService":"\#(service)",
          "seasons":[{"number":1,"title":"Staffel 1","watchedCount":\#(watched ? 1 : 0),
            "episodes":[{"season":1,"number":1,"name":"Pilot","aired":true,"watches":\#(watches)}]}]}
@@ -102,6 +107,7 @@ extension Fixtures {
         transport.on(.get, "/api/v1/me", json: 200, me)
         let model = AppModel(environment: environment(transport: transport, token: token))
         await model.start()
+        await model.startupChecks?.value
         return model
     }
 

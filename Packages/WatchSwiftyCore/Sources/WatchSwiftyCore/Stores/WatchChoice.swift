@@ -22,6 +22,12 @@ public struct WatchChoice: Sendable, Equatable {
         self.rewatch = rewatch
     }
 
+    /// One tap „Gesehen“: today, last used service; an episode or movie already watched is a rewatch (otherwise the
+    /// server keeps the existing watch and nothing is added).
+    public static func quick(alreadyWatched: Bool) -> WatchChoice {
+        WatchChoice(rewatch: alreadyWatched)
+    }
+
     public var input: Components.Schemas.WatchInput {
         let service: Components.Schemas.WatchInput.servicePayload? = switch self.service {
         case .lastUsed: nil
