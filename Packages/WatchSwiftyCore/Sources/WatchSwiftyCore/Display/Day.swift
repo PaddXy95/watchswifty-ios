@@ -19,4 +19,27 @@ public enum Day {
         let parts = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%02d.%02d.%04d", parts.day ?? 0, parts.month ?? 0, parts.year ?? 0)
     }
+
+    /// Whole days from `today` to `day` (negative for the past); nil if either is not a day.
+    public static func days(from today: String, to day: String, calendar: Calendar = .current) -> Int? {
+        guard let start = date(from: today, calendar: calendar), let end = date(from: day, calendar: calendar) else { return nil }
+        return calendar.dateComponents([.day], from: start, to: end).day
+    }
+
+    /// Airs today or within the next two days („weniger als 3 Tage“).
+    public static func isSoon(_ day: String?, today: String, calendar: Calendar = .current) -> Bool {
+        guard let day, let distance = days(from: today, to: day, calendar: calendar) else { return false }
+        return (0..<3).contains(distance)
+    }
+
+    /// „heute“, „morgen“, „übermorgen“, „in 5 Tagen“; nil for the past.
+    public static func relative(_ day: String, today: String, calendar: Calendar = .current) -> String? {
+        guard let distance = days(from: today, to: day, calendar: calendar), distance >= 0 else { return nil }
+        switch distance {
+        case 0: return "heute"
+        case 1: return "morgen"
+        case 2: return "übermorgen"
+        default: return "in \(distance) Tagen"
+        }
+    }
 }

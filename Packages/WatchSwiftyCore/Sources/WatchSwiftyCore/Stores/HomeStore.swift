@@ -13,10 +13,15 @@ public final class HomeStore {
     public private(set) var inFlight: Set<Int> = []
     public var actionError: UserFacingError?
 
+    /// An upcoming episode airs within three days (badge on the „Demnächst“ button).
+    public func hasUpcomingSoon(today: String) -> Bool {
+        notes.value?.upcoming.contains { Day.isSoon($0.next.airDate, today: today) } ?? false
+    }
+
     /// Nothing to show at all – not even older paused series behind „Ältere anzeigen“.
     public var isEmpty: Bool {
         guard let value = cards.value else { return false }
-        let noNotes = notes.value.map { $0.newEpisodes.isEmpty && $0.upcoming.isEmpty } ?? true
+        let noNotes = notes.value?.newEpisodes.isEmpty ?? true   // „Demnächst“ is behind the toolbar button
         return value.cards.isEmpty && value.olderCount == 0 && !showAll && noNotes
     }
 

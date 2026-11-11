@@ -8,11 +8,14 @@ struct TitleHeader: View {
     let subtitle: String
     let overview: String?
     @State private var expanded = false
+    @State private var showPoster = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top, spacing: 16) {
-                PosterImage(path: posterPath, width: 100)
+                Button { showPoster = posterPath != nil } label: { PosterImage(path: posterPath, width: 100) }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Poster vergrößern")
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title).font(.title2.bold())
                     if !subtitle.isEmpty { Text(subtitle).foregroundStyle(.secondary) }
@@ -26,6 +29,9 @@ struct TitleHeader: View {
             }
         }
         .padding(.vertical, 4)
+        .fullScreenCover(isPresented: $showPoster) {
+            if let posterPath { PosterViewer(path: posterPath, title: title) }
+        }
     }
 }
 

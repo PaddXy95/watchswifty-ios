@@ -24,4 +24,25 @@ import Testing
         #expect(Day.display("2026-11-07", calendar: berlin) == "07.11.2026")
         #expect(Day.display("kaputt", calendar: berlin) == "kaputt")
     }
+
+    @Test(arguments: [("2026-11-11", 0), ("2026-11-12", 1), ("2026-11-13", 2), ("2026-11-14", 3), ("2026-11-10", -1), ("2026-12-01", 20)])
+    func daysBetween(day: String, expected: Int) {
+        #expect(Day.days(from: "2026-11-11", to: day, calendar: berlin) == expected)
+    }
+
+    @Test func soonMeansWithinThreeDays() {
+        #expect(Day.isSoon("2026-11-11", today: "2026-11-11", calendar: berlin))
+        #expect(Day.isSoon("2026-11-13", today: "2026-11-11", calendar: berlin))
+        #expect(!Day.isSoon("2026-11-14", today: "2026-11-11", calendar: berlin))
+        #expect(!Day.isSoon("2026-11-10", today: "2026-11-11", calendar: berlin))
+        #expect(!Day.isSoon(nil, today: "2026-11-11", calendar: berlin))
+    }
+
+    @Test func relativeLabels() {
+        #expect(Day.relative("2026-11-11", today: "2026-11-11", calendar: berlin) == "heute")
+        #expect(Day.relative("2026-11-12", today: "2026-11-11", calendar: berlin) == "morgen")
+        #expect(Day.relative("2026-11-13", today: "2026-11-11", calendar: berlin) == "übermorgen")
+        #expect(Day.relative("2026-11-16", today: "2026-11-11", calendar: berlin) == "in 5 Tagen")
+        #expect(Day.relative("2026-11-10", today: "2026-11-11", calendar: berlin) == nil)
+    }
 }

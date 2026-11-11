@@ -24,6 +24,7 @@ private struct StartContent: View {
     @State private var feedback = 0
     /// The cards as shown; updated inside `withAnimation`, so the list animates row heights, inserts and removals.
     @State private var shownCards: [Components.Schemas.ContinueCard] = []
+    @State private var showUpcoming = false
 
     var body: some View {
         Group {
@@ -52,6 +53,17 @@ private struct StartContent: View {
             Text(store.actionError?.message ?? "")
         }
         .sensoryFeedback(.success, trigger: feedback)
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                let soon = store.hasUpcomingSoon(today: Day.string(from: Date()))
+                Button { showUpcoming = true } label: {
+                    Image(systemName: soon ? "calendar.badge.exclamationmark" : "calendar")
+                        .symbolRenderingMode(soon ? .multicolor : .monochrome)
+                }
+                .accessibilityLabel(soon ? "Demnächst, bald neue Folgen" : "Demnächst")
+            }
+        }
+        .navigationDestination(isPresented: $showUpcoming) { UpcomingView(store: store) }
     }
 
     private var list: some View {
@@ -89,20 +101,6 @@ private struct StartContent: View {
                             .swipeActions {
                                 Button("Ausblenden", systemImage: "eye.slash") {
                                     Task { await store.dismissNewEpisodes(tmdbID: note.tmdbId) }
-                                }
-                            }
-                        }
-                    }
-                }
-                if !notes.upcoming.isEmpty {
-                    Section("Demnächst") {
-                        ForEach(notes.upcoming, id: \.tmdbId) { note in
-                            NavigationLink(value: Route.series(note.tmdbId)) {
-                                VStack(alignment: .leading) {
-                                    Text(note.name)
-                                    Text("S\(note.next.season)E\(note.next.number)"
-                                         + (note.next.airDate.map { " am \(Day.display($0))" } ?? ""))
-                                        .font(.caption).foregroundStyle(.secondary)
                                 }
                             }
                         }

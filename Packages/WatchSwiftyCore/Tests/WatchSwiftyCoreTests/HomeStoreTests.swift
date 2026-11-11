@@ -129,4 +129,19 @@ import WatchSwiftyClient
         await store.load()
         #expect(store.isEmpty)
     }
+
+    @Test func upcomingSoonFlag() async {
+        let transport = FakeTransport()
+        transport.on(.get, "/api/v1/continue-watching", json: 200, #"{"cards":[],"olderCount":0}"#)
+        transport.on(.get, "/api/v1/notes", json: 200, #"""
+        {"newEpisodes":[],"upcoming":[{"tmdbId":5,"name":"Andor","count":1,
+          "next":{"episodeId":"\#(Self.episodeID)","season":3,"number":1,"name":"Eins","airDate":"2026-11-13"}}]}
+        """#)
+        let model = await Fixtures.readyModel(transport)
+        let store = HomeStore(api: model.api, app: model, snapshot: snapshot())
+        await store.load()
+        #expect(store.hasUpcomingSoon(today: "2026-11-11"))
+        #expect(!store.hasUpcomingSoon(today: "2026-11-09"))
+        #expect(store.isEmpty)   // „Demnächst“ lives behind the toolbar button, not on Start
+    }
 }
