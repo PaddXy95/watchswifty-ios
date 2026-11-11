@@ -8,13 +8,13 @@ struct MainTabView: View {
                 NavigationStack { StartView().withRoutes() }
             }
             Tab("Bibliothek", systemImage: "books.vertical") {
-                NavigationStack { PlaceholderView(title: "Bibliothek") }
+                NavigationStack { LibraryView().withRoutes() }
             }
             Tab("Verlauf", systemImage: "clock") {
                 NavigationStack { HistoryView().withRoutes() }
             }
             Tab("Mehr", systemImage: "ellipsis.circle") {
-                NavigationStack { MoreView() }
+                NavigationStack { MoreView().withRoutes() }
             }
             Tab("Suche", systemImage: "magnifyingglass", role: .search) {
                 NavigationStack { SearchView().withRoutes() }
