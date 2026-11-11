@@ -53,8 +53,8 @@ private struct AccountContent: View {
                 NotificationSections(store: store, prefs: prefs) { sheet = .webhookKey }
             }
             Section {
-                NavigationLink("Geräte") { DevicesView(store: store) }
-                NavigationLink("Beobachtete Serien") { FollowedView(store: store) }
+                NavigationLink("Geräte", value: AccountDestination.devices)
+                NavigationLink("Beobachtete Serien", value: AccountDestination.followed)
             }
             if let url = store.webAccountURL {
                 Section {
@@ -69,6 +69,12 @@ private struct AccountContent: View {
         }
         .disabled(store.busy)
         .refreshable { await store.load() }
+        .navigationDestination(for: AccountDestination.self) { destination in
+            switch destination {
+            case .devices: DevicesView(store: store)
+            case .followed: FollowedView(store: store)
+            }
+        }
         .sheet(item: $sheet) { sheet in
             switch sheet {
             case .password: PasswordSheet(store: store)
@@ -95,6 +101,10 @@ private struct AccountContent: View {
         case .unreadable: "Nicht lesbar – bitte neu eintragen"
         }
     }
+}
+
+enum AccountDestination: Hashable {
+    case devices, followed
 }
 
 private enum AccountSheet: Identifiable {

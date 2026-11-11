@@ -5,15 +5,25 @@ import WatchSwiftyCore
 struct ImportsView: View {
     var body: some View {
         List {
-            NavigationLink { NetflixImportView() } label: {
+            NavigationLink(value: ImportDestination.netflix) {
                 Label("Netflix-Verlauf", systemImage: "square.and.arrow.down")
             }
-            NavigationLink { FilmListView() } label: {
+            NavigationLink(value: ImportDestination.filmList) {
                 Label("Filmliste", systemImage: "film.stack")
             }
         }
         .navigationTitle("Importe")
+        .navigationDestination(for: ImportDestination.self) { destination in
+            switch destination {
+            case .netflix: NetflixImportView()
+            case .filmList: FilmListView()
+            }
+        }
     }
+}
+
+enum ImportDestination: Hashable {
+    case netflix, filmList
 }
 
 extension MappingStatusValue {

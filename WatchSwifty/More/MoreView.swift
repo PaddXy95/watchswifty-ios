@@ -21,23 +21,39 @@ struct MoreView: View {
                 }
             }
             Section {
-                NavigationLink { StatsView() } label: { Label("Statistik", systemImage: "chart.bar") }
-                NavigationLink { ImportsView() } label: { Label("Importe", systemImage: "square.and.arrow.down") }
-                NavigationLink { AccountView() } label: { Label("Konto", systemImage: "person.crop.circle") }
+                NavigationLink(value: MoreDestination.stats) { Label("Statistik", systemImage: "chart.bar") }
+                NavigationLink(value: MoreDestination.imports) { Label("Importe", systemImage: "square.and.arrow.down") }
+                NavigationLink(value: MoreDestination.account) { Label("Konto", systemImage: "person.crop.circle") }
                 if model.me?.isAdmin == true {
-                    NavigationLink { AdminView() } label: { Label("Verwaltung", systemImage: "wrench.and.screwdriver") }
+                    NavigationLink(value: MoreDestination.admin) { Label("Verwaltung", systemImage: "wrench.and.screwdriver") }
                 }
             }
             Section {
-                NavigationLink { ServerSettingsView() } label: { Label("Server", systemImage: "server.rack") }
-                NavigationLink { AboutView() } label: { Label("Über", systemImage: "info.circle") }
+                NavigationLink(value: MoreDestination.server) { Label("Server", systemImage: "server.rack") }
+                NavigationLink(value: MoreDestination.about) { Label("Über", systemImage: "info.circle") }
             }
         }
         .navigationTitle("Mehr")
+        .navigationDestination(for: MoreDestination.self) { destination in
+            switch destination {
+            case .stats: StatsView()
+            case .imports: ImportsView()
+            case .account: AccountView()
+            case .admin: AdminView()
+            case .server: ServerSettingsView()
+            case .about: AboutView()
+            }
+        }
         .alert("Das hat nicht geklappt", isPresented: Binding(get: { renewError != nil }, set: { if !$0 { renewError = nil } })) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(renewError?.message ?? "")
         }
     }
+}
+
+/// Screens behind „Mehr“. Pushed by value like `Route`: a view-destination link in the same stack makes SwiftUI push
+/// and pop in a loop once a value link follows it (`NavigationStyleTests`).
+enum MoreDestination: Hashable {
+    case stats, imports, account, admin, server, about
 }
