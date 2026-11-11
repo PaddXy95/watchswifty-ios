@@ -130,6 +130,9 @@ public final class AppModel {
         phase = .needsLogin
     }
 
+    /// A change answered with the new account state (TMDB token, e-mail).
+    public func update(me: Components.Schemas.Me) { self.me = me }
+
     public func refreshMe() async {
         if let me = try? await api.getMe().ok.body.json { self.me = me }
     }
