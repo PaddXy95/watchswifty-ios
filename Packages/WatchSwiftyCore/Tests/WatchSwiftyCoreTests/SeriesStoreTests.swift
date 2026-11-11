@@ -103,6 +103,29 @@ import WatchSwiftyClient
         #expect(Fixtures.jsonObject(transport.requests.last?.body)["comment"] as? String == "Stark")
     }
 
+    /// Behind a reverse proxy a POST without a body can reach the server as an empty body, which the server then fails
+    /// to read as JSON („The given data was not valid JSON“). Marks without a date therefore always send `{}`.
+    @Test func undatedMarksSendAnEmptyJSONObject() async throws {
+        let transport = FakeTransport()
+        for path in ["/api/v1/tv/1/seasons/1/watch", "/api/v1/tv/1/watch-all", "/api/v1/tv/1/episodes/1/1/watch-up-to"] {
+            transport.on(.post, path, json: 200, Fixtures.series(watched: true))
+        }
+        let model = await Fixtures.readyModel(transport)
+        let store = SeriesStore(tmdbID: 1, api: model.api, app: model)
+        await store.markSeason(1)
+        await store.markAll()
+        await store.markUpTo(season: 1, number: 1)
+        #expect(store.actionError == nil)
+        let marks = transport.requests.filter { $0.method == .post }
+        #expect(marks.map(\.path) == ["/api/v1/tv/1/seasons/1/watch", "/api/v1/tv/1/watch-all",
+                                      "/api/v1/tv/1/episodes/1/1/watch-up-to"])
+        for mark in marks {
+            let body = try #require(mark.body, "\(mark.path) sends no body")
+            #expect((try JSONSerialization.jsonObject(with: body) as? [String: Any])?.isEmpty == true, "\(mark.path)")
+            #expect(mark.request.headerFields[.contentType]?.hasPrefix("application/json") == true, "\(mark.path)")
+        }
+    }
+
     @Test func quickChoiceRewatchesWatchedEpisode() {
         #expect(WatchChoice.quick(alreadyWatched: true).input.rewatch == true)
         #expect(WatchChoice.quick(alreadyWatched: false).input.rewatch == nil)

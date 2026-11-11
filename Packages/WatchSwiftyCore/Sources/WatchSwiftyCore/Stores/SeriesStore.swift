@@ -83,16 +83,21 @@ public final class SeriesStore {
         await mutate { try await $0.unmarkEpisode(path: .init(tmdbID: self.tmdbID, season: season, number: number)).ok.body.json }
     }
 
+    // The undated marks below send an empty `WatchInput` (`{}`) although the body is optional: behind a reverse proxy
+    // a POST without a body can arrive as an empty body, which the server cannot read as JSON.
+
     public func markUpTo(season: Int, number: Int) async {
-        await mutate { try await $0.markUpTo(path: .init(tmdbID: self.tmdbID, season: season, number: number)).ok.body.json }
+        await mutate {
+            try await $0.markUpTo(path: .init(tmdbID: self.tmdbID, season: season, number: number), body: .json(.init())).ok.body.json
+        }
     }
 
     public func markSeason(_ season: Int) async {
-        await mutate { try await $0.markSeason(path: .init(tmdbID: self.tmdbID, season: season)).ok.body.json }
+        await mutate { try await $0.markSeason(path: .init(tmdbID: self.tmdbID, season: season), body: .json(.init())).ok.body.json }
     }
 
     public func markAll() async {
-        await mutate { try await $0.markSeries(path: .init(tmdbID: self.tmdbID)).ok.body.json }
+        await mutate { try await $0.markSeries(path: .init(tmdbID: self.tmdbID), body: .json(.init())).ok.body.json }
     }
 
     public func setHidden(_ hidden: Bool) async {
