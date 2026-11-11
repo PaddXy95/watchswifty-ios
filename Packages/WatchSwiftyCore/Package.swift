@@ -1,0 +1,33 @@
+// swift-tools-version:6.2
+import PackageDescription
+
+let package = Package(
+    name: "WatchSwiftyCore",
+    platforms: [.iOS(.v26), .macOS(.v26)],
+    products: [
+        .library(name: "WatchSwiftyCore", targets: ["WatchSwiftyCore"]),
+    ],
+    dependencies: [
+        // During development: the server checkout next to this repo (see README). Pinned to a release tag later.
+        .package(name: "watchswifty", path: "../../../watchswifty"),
+        .package(url: "https://github.com/apple/swift-openapi-runtime", from: "1.13.4"),
+        .package(url: "https://github.com/apple/swift-openapi-urlsession", from: "1.0.0"),
+    ],
+    targets: [
+        .target(
+            name: "WatchSwiftyCore",
+            dependencies: [
+                .product(name: "WatchSwiftyClient", package: "watchswifty"),
+                .product(name: "OpenAPIRuntime", package: "swift-openapi-runtime"),
+                .product(name: "OpenAPIURLSession", package: "swift-openapi-urlsession"),
+            ]
+        ),
+        .testTarget(
+            name: "WatchSwiftyCoreTests",
+            dependencies: [
+                "WatchSwiftyCore",
+                .product(name: "WatchSwiftyClient", package: "watchswifty"),
+            ]
+        ),
+    ]
+)
