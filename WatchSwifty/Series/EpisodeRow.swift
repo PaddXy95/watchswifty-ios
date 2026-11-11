@@ -37,6 +37,7 @@ struct EpisodeSheet: View {
     @State private var date = Date()
     @State private var service: ServiceChoice = .lastUsed
     @State private var rewatch = false
+    @State private var confirmUnmark = false
 
     private var episode: Components.Schemas.Episode? {
         store.detail.value?.seasons.first { $0.number == target.season }?.episodes.first { $0.number == target.number }
@@ -85,12 +86,7 @@ struct EpisodeSheet: View {
                         }
                         if !episode.watches.isEmpty {
                             Section {
-                                Button("Nicht gesehen", systemImage: "xmark.circle", role: .destructive) {
-                                    Task {
-                                        await store.unmarkEpisode(season: target.season, number: target.number)
-                                        if store.actionError == nil { dismiss() }
-                                    }
-                                }
+                                Button("Nicht gesehen", systemImage: "xmark.circle", role: .destructive) { confirmUnmark = true }
                             }
                         }
                     }
@@ -100,6 +96,14 @@ struct EpisodeSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { ToolbarItem(placement: .confirmationAction) { Button("Fertig") { dismiss() } } }
             .onAppear { rewatch = !(episode?.watches.isEmpty ?? true) }
+            .confirmationDialog("Als nicht gesehen markieren?", isPresented: $confirmUnmark, titleVisibility: .visible) {
+                Button("Nicht gesehen", role: .destructive) {
+                    Task {
+                        await store.unmarkEpisode(season: target.season, number: target.number)
+                        if store.actionError == nil { dismiss() }
+                    }
+                }
+            }
         }
         .presentationDetents([.medium, .large])
     }

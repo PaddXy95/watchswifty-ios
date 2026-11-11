@@ -21,6 +21,7 @@ struct MovieView: View {
 private struct MovieContent: View {
     @Bindable var store: MovieStore
     @State private var showWatchSheet = false
+    @State private var confirmUnmark = false
     @State private var feedback = 0
 
     var body: some View {
@@ -49,6 +50,11 @@ private struct MovieContent: View {
             Text(store.actionError?.message ?? "")
         }
         .sensoryFeedback(.success, trigger: feedback)
+        .confirmationDialog("Als nicht gesehen markieren?", isPresented: $confirmUnmark, titleVisibility: .visible) {
+            Button("Nicht gesehen", role: .destructive) { Task { await store.unmark() } }
+        } message: {
+            Text("Die Sichtung von „\(store.detail.value?.name ?? "")“ wird gelöscht.")
+        }
     }
 
     private func list(_ detail: Components.Schemas.MovieDetail) -> some View {
@@ -79,9 +85,7 @@ private struct MovieContent: View {
                     showWatchSheet = true
                 }
                 if !detail.watches.isEmpty {
-                    Button("Nicht gesehen", systemImage: "xmark.circle", role: .destructive) {
-                        Task { await store.unmark() }
-                    }
+                    Button("Nicht gesehen", systemImage: "xmark.circle", role: .destructive) { confirmUnmark = true }
                 }
             }
         }
