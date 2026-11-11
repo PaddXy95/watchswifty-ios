@@ -24,7 +24,6 @@ private struct StartContent: View {
     @State private var feedback = 0
     /// The cards as shown; updated inside `withAnimation`, so the list animates row heights, inserts and removals.
     @State private var shownCards: [Components.Schemas.ContinueCard] = []
-    @State private var showUpcoming = false
 
     var body: some View {
         Group {
@@ -56,14 +55,16 @@ private struct StartContent: View {
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 let soon = store.hasUpcomingSoon(today: Day.string(from: Date()))
-                Button { showUpcoming = true } label: {
+                // Value-based like every other link in this stack: mixing it with `navigationDestination(isPresented:)`
+                // made SwiftUI push and pop in a loop when a series was opened from „Demnächst“.
+                NavigationLink(value: StartDestination.upcoming) {
                     Image(systemName: soon ? "calendar.badge.exclamationmark" : "calendar")
                         .symbolRenderingMode(soon ? .multicolor : .monochrome)
                 }
                 .accessibilityLabel(soon ? "Demnächst, bald neue Folgen" : "Demnächst")
             }
         }
-        .navigationDestination(isPresented: $showUpcoming) { UpcomingView(store: store) }
+        .navigationDestination(for: StartDestination.self) { _ in UpcomingView(store: store) }
     }
 
     private var list: some View {
@@ -165,4 +166,9 @@ struct ContinueCardRow: View {
             .disabled(busy)
         }
     }
+}
+
+/// Screens reached from Start only.
+enum StartDestination: Hashable {
+    case upcoming
 }
