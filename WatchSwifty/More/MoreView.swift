@@ -24,6 +24,9 @@ struct MoreView: View {
                 NavigationLink { StatsView() } label: { Label("Statistik", systemImage: "chart.bar") }
                 NavigationLink { ImportsView() } label: { Label("Importe", systemImage: "square.and.arrow.down") }
                 NavigationLink { AccountView() } label: { Label("Konto", systemImage: "person.crop.circle") }
+                if model.me?.isAdmin == true {
+                    NavigationLink { AdminView() } label: { Label("Verwaltung", systemImage: "wrench.and.screwdriver") }
+                }
             }
             Section {
                 NavigationLink { ServerSettingsView() } label: { Label("Server", systemImage: "server.rack") }
