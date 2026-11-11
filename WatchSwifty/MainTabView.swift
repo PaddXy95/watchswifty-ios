@@ -5,7 +5,7 @@ struct MainTabView: View {
     var body: some View {
         TabView {
             Tab("Start", systemImage: "play.circle") {
-                NavigationStack { PlaceholderView(title: "Start") }
+                NavigationStack { StartView().withRoutes() }
             }
             Tab("Bibliothek", systemImage: "books.vertical") {
                 NavigationStack { PlaceholderView(title: "Bibliothek") }
