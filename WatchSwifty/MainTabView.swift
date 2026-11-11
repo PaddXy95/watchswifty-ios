@@ -11,7 +11,7 @@ struct MainTabView: View {
                 NavigationStack { PlaceholderView(title: "Bibliothek") }
             }
             Tab("Verlauf", systemImage: "clock") {
-                NavigationStack { PlaceholderView(title: "Verlauf") }
+                NavigationStack { HistoryView().withRoutes() }
             }
             Tab("Mehr", systemImage: "ellipsis.circle") {
                 NavigationStack { MoreView() }
