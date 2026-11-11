@@ -17,7 +17,7 @@ struct MainTabView: View {
                 NavigationStack { MoreView() }
             }
             Tab("Suche", systemImage: "magnifyingglass", role: .search) {
-                NavigationStack { PlaceholderView(title: "Suche") }
+                NavigationStack { SearchView().withRoutes() }
             }
         }
     }
