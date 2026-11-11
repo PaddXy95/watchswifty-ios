@@ -50,7 +50,8 @@ public struct SignIn: Sendable {
         } catch let error as AuthError {
             throw error
         } catch {
-            throw .exchangeFailed("Server nicht erreichbar.")
+            // With APIErrorMiddleware the 400 arrives as a thrown UserFacingError; network errors map to „offline“.
+            throw .exchangeFailed(UserFacingError.from(error).message)
         }
 
         let token = StoredToken(token: grant.token, expiresAt: grant.expiresAt, deviceID: grant.device.id)

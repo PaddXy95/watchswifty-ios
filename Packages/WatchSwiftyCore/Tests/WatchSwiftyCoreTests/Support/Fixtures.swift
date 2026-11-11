@@ -42,3 +42,44 @@ final class FakeWebAuthenticator: WebAuthenticator, @unchecked Sendable {
         }
     }
 }
+
+extension Fixtures {
+    static let me = #"""
+    {"username":"pat","isAdmin":true,"hasPassword":true,"ssoLinked":false,"passwordLogin":true,
+     "tmdbToken":{"state":"stored","suffix":"…abcd"}}
+    """#
+
+    static let token = StoredToken(token: "ws_current", expiresAt: Date(timeIntervalSince1970: 1_801_828_800),
+                                   deviceID: "6F9619FF-8B86-D011-B42D-00C04FC964FF")
+
+    static func settings() -> UserDefaults {
+        let defaults = UserDefaults(suiteName: "test-\(UUID().uuidString)")!
+        return defaults
+    }
+
+    /// Environment with a fake server; `server` is stored as already chosen unless nil.
+    static func environment(transport: FakeTransport, token: StoredToken? = nil, server: ServerAddress? = Fixtures.server,
+                            minimum: String = "0.4.0", tokenStore: (any TokenStore)? = nil,
+                            now: Date = Date(timeIntervalSince1970: 1_800_000_000)) -> AppEnvironment {
+        let settings = settings()
+        if let server { settings.set(server.baseURL.absoluteString, forKey: AppModel.serverKey) }
+        return AppEnvironment(tokenStore: tokenStore ?? InMemoryTokenStore(token), settings: settings,
+                              transport: transport, minimumServerVersion: minimum, now: { now })
+    }
+}
+
+final class CountingTokenStore: TokenStore, @unchecked Sendable {
+    private let inner: InMemoryTokenStore
+    private let deletes = Counter()
+    init(_ token: StoredToken?) { inner = InMemoryTokenStore(token) }
+    var deleteCount: Int { deletes.value }
+    func load() throws -> StoredToken? { try inner.load() }
+    func save(_ token: StoredToken) throws { try inner.save(token) }
+    func delete() throws { deletes.increment(); try inner.delete() }
+}
+
+@MainActor func waitUntil(_ condition: @MainActor () -> Bool) async {
+    let clock = ContinuousClock()
+    let deadline = clock.now + .seconds(2)
+    while !condition(), clock.now < deadline { try? await Task.sleep(for: .milliseconds(5)) }
+}

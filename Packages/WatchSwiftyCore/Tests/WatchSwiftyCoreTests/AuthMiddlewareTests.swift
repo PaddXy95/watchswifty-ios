@@ -6,7 +6,7 @@ import Testing
     @Test func authMiddlewareAddsBearer() async throws {
         let transport = FakeTransport()
         transport.on(.get, "/api/v1/version", json: 200, #"{"version":"0.4.0"}"#)
-        let middleware = AuthMiddleware(token: { "ws_secret" }, onUnauthorized: {})
+        let middleware = AuthMiddleware(token: { "ws_secret" }, onUnauthorized: { _ in })
         let api = makeClient(server: Fixtures.server, middlewares: [middleware], transport: transport)
         _ = try await api.getVersion()
         #expect(transport.requests[0].request.headerFields[.authorization] == "Bearer ws_secret")
@@ -16,7 +16,7 @@ import Testing
         let transport = FakeTransport()
         transport.on(.get, "/api/v1/version", json: 200, #"{"version":"0.4.0"}"#)
         let api = makeClient(server: Fixtures.server,
-                             middlewares: [AuthMiddleware(token: { nil }, onUnauthorized: {})], transport: transport)
+                             middlewares: [AuthMiddleware(token: { nil }, onUnauthorized: { _ in })], transport: transport)
         _ = try await api.getVersion()
         #expect(transport.requests[0].request.headerFields[.authorization] == nil)
     }
@@ -26,7 +26,7 @@ import Testing
         transport.on(.get, "/api/v1/me", json: 401, Fixtures.error("tokenExpired", "Abgelaufen."))
         let reported = Counter()
         let api = makeClient(server: Fixtures.server,
-                             middlewares: [AuthMiddleware(token: { "ws_old" }, onUnauthorized: { reported.increment() })],
+                             middlewares: [AuthMiddleware(token: { "ws_old" }, onUnauthorized: { used in #expect(used == "ws_old"); reported.increment() })],
                              transport: transport)
         let output = try await api.getMe()
         guard case .unauthorized = output else { Issue.record("expected 401, got \(output)"); return }
