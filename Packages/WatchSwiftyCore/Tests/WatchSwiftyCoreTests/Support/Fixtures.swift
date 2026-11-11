@@ -83,3 +83,56 @@ final class CountingTokenStore: TokenStore, @unchecked Sendable {
     let deadline = clock.now + .seconds(2)
     while !condition(), clock.now < deadline { try? await Task.sleep(for: .milliseconds(5)) }
 }
+
+extension Fixtures {
+    static func series(watched: Bool = false, service: String = "netflix", rating: Int? = nil) -> String {
+        let watches = watched ? #"[{"id":"0F2B4D63-8E57-4E0A-9C5B-3B1E2D4F5A6B","day":"2026-11-07","service":"\#(service)","origin":"manual"}]"# : "[]"
+        let ratingField = rating.map { #""rating":\#($0),"# } ?? ""
+        return #"""
+        {"tmdbId":1,"name":"Severance",\#(ratingField)"links":{"tmdb":"https://tmdb","imdb":"https://imdb","rottenTomatoes":"https://rt"},
+         "hidden":false,"followed":true,"lastService":"\#(service)",
+         "seasons":[{"number":1,"title":"Staffel 1","watchedCount":\#(watched ? 1 : 0),
+           "episodes":[{"season":1,"number":1,"name":"Pilot","aired":true,"watches":\#(watches)}]}]}
+        """#
+    }
+
+    /// An AppModel that is signed in against `transport` (version + me answered).
+    @MainActor static func readyModel(_ transport: FakeTransport) async -> AppModel {
+        transport.on(.get, "/api/v1/version", json: 200, #"{"version":"0.4.0"}"#)
+        transport.on(.get, "/api/v1/me", json: 200, me)
+        let model = AppModel(environment: environment(transport: transport, token: token))
+        await model.start()
+        return model
+    }
+
+    static func jsonObject(_ data: Data?) -> [String: Any] {
+        (data.flatMap { try? JSONSerialization.jsonObject(with: $0) } as? [String: Any]) ?? [:]
+    }
+}
+
+/// A handler that answers only when `release()` is called (to test in-flight guards).
+final class Gate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var released = false
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            let resumeNow = lock.withLock { () -> Bool in
+                if released { return true }
+                self.continuation = continuation
+                return false
+            }
+            if resumeNow { continuation.resume() }
+        }
+    }
+
+    func release() {
+        let continuation = lock.withLock { () -> CheckedContinuation<Void, Never>? in
+            released = true
+            defer { self.continuation = nil }
+            return self.continuation
+        }
+        continuation?.resume()
+    }
+}
