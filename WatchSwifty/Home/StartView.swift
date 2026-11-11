@@ -8,7 +8,7 @@ struct StartView: View {
 
     var body: some View {
         Group {
-            if let store { StartContent(store: store) } else { ProgressView() }
+            if let store { StartContent(store: store) } else { ListSkeleton(rows: 6, poster: true) }
         }
         .navigationTitle("Start")
         .task {
@@ -27,6 +27,8 @@ private struct StartContent: View {
         Group {
             if store.cards.value == nil, let error = store.cards.error {
                 ErrorView(error: error) { await store.load() }
+            } else if store.cards.value == nil {
+                ListSkeleton(rows: 6, poster: true)
             } else if let cards = store.cards.value, cards.cards.isEmpty, isEmptyNotes {
                 ContentUnavailableView("Nichts zum Weiterschauen", systemImage: "tv",
                                        description: Text("Suche eine Serie und markiere die erste Folge als gesehen."))
@@ -68,7 +70,6 @@ private struct StartContent: View {
                     }
                 }
             }
-            .redacted(reason: store.cards.value == nil ? .placeholder : [])
             if let notes = store.notes.value {
                 if !notes.newEpisodes.isEmpty {
                     Section("Neue Folgen") {

@@ -33,7 +33,7 @@ private struct SearchContent: View {
                     }
                 }
             } else if store.results.isLoading {
-                ProgressView().frame(maxWidth: .infinity)
+                SkeletonRows(count: 6, poster: true)
             }
         }
         .listStyle(.plain)

@@ -8,7 +8,7 @@ struct LibraryView: View {
 
     var body: some View {
         Group {
-            if let store { LibraryContent(store: store) } else { ProgressView() }
+            if let store { LibraryContent(store: store) } else { GridSkeleton() }
         }
         .navigationTitle("Bibliothek")
         .task {
@@ -26,6 +26,8 @@ private struct LibraryContent: View {
         Group {
             if store.entries.value == nil, let error = store.entries.error {
                 ErrorView(error: error) { await store.load() }
+            } else if store.entries.value == nil {
+                GridSkeleton()
             } else if let entries = store.entries.value, entries.isEmpty {
                 ContentUnavailableView("Keine Titel", systemImage: "books.vertical",
                                        description: Text("Hier erscheint alles, was du gesehen, bewertet oder kommentiert hast."))

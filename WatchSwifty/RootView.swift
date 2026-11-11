@@ -8,7 +8,7 @@ struct RootView: View {
     var body: some View {
         switch model.phase {
         case .launching:
-            ProgressView()
+            Color(.systemGroupedBackground).ignoresSafeArea()
         case .needsServer:
             ServerSetupView()
         case .needsLogin:

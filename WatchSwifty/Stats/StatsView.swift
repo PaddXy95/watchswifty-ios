@@ -9,7 +9,7 @@ struct StatsView: View {
 
     var body: some View {
         Group {
-            if let store { StatsContent(store: store) } else { ProgressView() }
+            if let store { StatsContent(store: store) } else { StatsSkeleton() }
         }
         .navigationTitle("Statistik")
         .task {
@@ -29,7 +29,7 @@ private struct StatsContent: View {
             } else if let error = store.stats.error {
                 ErrorView(error: error) { await store.load() }
             } else {
-                ProgressView()
+                StatsSkeleton()
             }
         }
         .refreshable { await store.load() }
@@ -53,7 +53,7 @@ private struct StatsContent: View {
 
     private func list(_ stats: Components.Schemas.Stats) -> some View {
         List {
-            Section(stats.year.map { "Jahr \($0)" } ?? "Zeitraum") {
+            Section(stats.year.map { "Jahr " + String($0) } ?? "Zeitraum") {
                 PeriodRows(period: stats.period, previous: stats.previous)
             }
             if !stats.chart.isEmpty {

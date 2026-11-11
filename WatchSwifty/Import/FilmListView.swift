@@ -9,7 +9,7 @@ struct FilmListView: View {
 
     var body: some View {
         Group {
-            if let store { FilmListContent(store: store) } else { ProgressView() }
+            if let store { FilmListContent(store: store) } else { ListSkeleton() }
         }
         .navigationTitle("Filmliste")
         .onAppear { if store == nil { store = FilmListStore(api: model.api, app: model) } }
@@ -54,6 +54,8 @@ private struct FilmListContent: View {
                 }
             } else if let error = store.list.error {
                 ErrorView(error: error) { await store.load() }
+            } else {
+                Section { SkeletonRows(count: 4) }
             }
         }
         .disabled(store.busy)

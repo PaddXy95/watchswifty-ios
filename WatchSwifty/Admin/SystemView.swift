@@ -8,7 +8,7 @@ struct SystemView: View {
 
     var body: some View {
         Group {
-            if let store { SystemContent(store: store) } else { ProgressView() }
+            if let store { SystemContent(store: store) } else { ListSkeleton(rows: 5) }
         }
         .navigationTitle("System")
         .task {
@@ -47,6 +47,8 @@ private struct SystemContent: View {
                 }
             } else if let error = store.system.error {
                 ErrorView(error: error) { await store.load() }
+            } else {
+                SkeletonRows(count: 5)
             }
         }
         .disabled(store.busy)

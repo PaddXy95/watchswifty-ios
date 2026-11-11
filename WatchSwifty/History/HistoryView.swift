@@ -8,7 +8,7 @@ struct HistoryView: View {
 
     var body: some View {
         Group {
-            if let store { HistoryContent(store: store) } else { ProgressView() }
+            if let store { HistoryContent(store: store) } else { ListSkeleton() }
         }
         .navigationTitle("Verlauf")
         .task {
@@ -37,6 +37,8 @@ private struct HistoryContent: View {
         Group {
             if store.items.isEmpty, let error = store.error {
                 ErrorView(error: error) { await store.loadFirstPage() }
+            } else if store.items.isEmpty, !store.hasLoaded {
+                ListSkeleton()
             } else if store.items.isEmpty, store.hasLoaded {
                 ContentUnavailableView("Noch nichts gesehen", systemImage: "clock",
                                        description: Text("Markierte Folgen und Filme erscheinen hier."))
@@ -55,7 +57,7 @@ private struct HistoryContent: View {
                             }
                         }
                     }
-                    if store.isLoading { ProgressView().frame(maxWidth: .infinity) }
+                    if store.isLoading, store.hasLoaded { SkeletonRows(count: 2) }
                 }
                 .disabled(store.busy)
             }

@@ -9,7 +9,7 @@ struct NetflixImportView: View {
 
     var body: some View {
         Group {
-            if let store { NetflixImportContent(store: store) } else { ProgressView() }
+            if let store { NetflixImportContent(store: store) } else { ListSkeleton() }
         }
         .navigationTitle("Netflix-Verlauf")
         .onAppear { if store == nil { store = NetflixImportStore(api: model.api, app: model) } }
@@ -43,6 +43,8 @@ private struct NetflixImportContent: View {
                 mappingsSection(state.mappings)
             } else if let error = store.state.error {
                 ErrorView(error: error) { await store.load() }
+            } else {
+                Section { SkeletonRows(count: 4) }
             }
         }
         .disabled(store.busy)

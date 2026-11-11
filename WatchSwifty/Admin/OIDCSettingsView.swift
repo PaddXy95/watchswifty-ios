@@ -8,7 +8,7 @@ struct OIDCSettingsView: View {
 
     var body: some View {
         Group {
-            if let store { OIDCContent(store: store) } else { ProgressView() }
+            if let store { OIDCContent(store: store) } else { ListSkeleton(rows: 5) }
         }
         .navigationTitle("Anmeldung über SSO")
         .task {
@@ -74,6 +74,8 @@ private struct OIDCContent: View {
                 }
             } else if let error = store.settings.error {
                 ErrorView(error: error) { await store.load() }
+            } else {
+                SkeletonRows(count: 5)
             }
         }
         .disabled(store.busy)

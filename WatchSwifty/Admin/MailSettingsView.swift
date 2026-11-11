@@ -8,7 +8,7 @@ struct MailSettingsView: View {
 
     var body: some View {
         Group {
-            if let store { MailContent(store: store) } else { ProgressView() }
+            if let store { MailContent(store: store) } else { ListSkeleton(rows: 5) }
         }
         .navigationTitle("Mail")
         .task {
@@ -64,6 +64,8 @@ private struct MailContent: View {
                 }
             } else if let error = store.settings.error {
                 ErrorView(error: error) { await store.load() }
+            } else {
+                SkeletonRows(count: 5)
             }
         }
         .disabled(store.busy)

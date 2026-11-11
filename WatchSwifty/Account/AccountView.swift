@@ -8,7 +8,7 @@ struct AccountView: View {
 
     var body: some View {
         Group {
-            if let store { AccountContent(store: store) } else { ProgressView() }
+            if let store { AccountContent(store: store) } else { ListSkeleton() }
         }
         .navigationTitle("Konto")
         .task {

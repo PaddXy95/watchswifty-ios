@@ -8,7 +8,7 @@ struct UsersView: View {
 
     var body: some View {
         Group {
-            if let store { UsersContent(store: store) } else { ProgressView() }
+            if let store { UsersContent(store: store) } else { ListSkeleton(rows: 4) }
         }
         .navigationTitle("Benutzer")
         .task {
@@ -25,6 +25,14 @@ private struct UsersContent: View {
     @State private var deleting: Components.Schemas.UserSummary?
 
     var body: some View {
+        if store.users.value == nil, store.users.error == nil {
+            ListSkeleton(rows: 4)
+        } else {
+            userList
+        }
+    }
+
+    private var userList: some View {
         List(store.users.value ?? [], id: \.id) { user in
             VStack(alignment: .leading, spacing: 2) {
                 HStack {
