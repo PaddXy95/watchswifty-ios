@@ -22,6 +22,7 @@ struct MoreView: View {
             }
             Section {
                 NavigationLink { StatsView() } label: { Label("Statistik", systemImage: "chart.bar") }
+                NavigationLink { ImportsView() } label: { Label("Importe", systemImage: "square.and.arrow.down") }
                 NavigationLink { AccountView() } label: { Label("Konto", systemImage: "person.crop.circle") }
             }
             Section {
