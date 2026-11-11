@@ -134,7 +134,7 @@ struct ContinueCardRow: View {
                 HStack(spacing: 8) {
                     Text(card.remaining == 1 ? "noch 1 Folge" : "noch \(card.remaining) Folgen")
                     if let link = card.watchLink, let url = URL(string: link.url) {
-                        Button("Ansehen bei \(link.label)") { openURL(url) }
+                        Button(link.label) { openURL(url) }
                             .buttonStyle(.borderless)
                     }
                 }

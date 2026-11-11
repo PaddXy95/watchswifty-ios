@@ -6,20 +6,13 @@ struct RatingControl: View {
     let onChange: (Int?) -> Void
 
     var body: some View {
-        Menu {
-            Button("Keine Bewertung") { onChange(nil) }
+        Picker("Bewertung", selection: Binding(get: { rating ?? 0 }, set: { onChange($0 == 0 ? nil : $0) })) {
+            Text("Keine").tag(0)
             ForEach((1...10).reversed(), id: \.self) { value in
-                Button("\(value) / 10") { onChange(value) }
-            }
-        } label: {
-            LabeledContent("Bewertung") {
-                if let rating {
-                    Label("\(rating) / 10", systemImage: "star.fill").foregroundStyle(.orange)
-                } else {
-                    Text("Bewerten")
-                }
+                Text("★ \(value) / 10").tag(value)
             }
         }
+        .pickerStyle(.menu)
     }
 }
 
