@@ -22,6 +22,8 @@ private struct StartContent: View {
     @Bindable var store: HomeStore
     @Environment(\.scenePhase) private var scenePhase
     @State private var feedback = 0
+    /// The cards as shown; updated inside `withAnimation`, so the list animates row heights, inserts and removals.
+    @State private var shownCards: [Components.Schemas.ContinueCard] = []
 
     var body: some View {
         Group {
@@ -35,6 +37,9 @@ private struct StartContent: View {
             } else {
                 list
             }
+        }
+        .onChange(of: store.cards.value?.cards ?? [], initial: true) { old, new in
+            if old.isEmpty { shownCards = new } else { withAnimation(.snappy(duration: 0.4)) { shownCards = new } }
         }
         .refreshable { await store.load() }
         .staleBanner(store.cards.value == nil ? nil : store.cards.error) { await store.load() }
@@ -52,7 +57,7 @@ private struct StartContent: View {
     private var list: some View {
         List {
             Section("Weiterschauen") {
-                ForEach(store.cards.value?.cards ?? [], id: \.tmdbId) { card in
+                ForEach(shownCards, id: \.tmdbId) { card in
                     NavigationLink(value: Route.series(card.tmdbId)) {
                         ContinueCardRow(card: card, busy: store.inFlight.contains(card.tmdbId)) { markNext(card.tmdbId) }
                     }
@@ -105,7 +110,6 @@ private struct StartContent: View {
                 }
             }
         }
-        .animation(.snappy, value: store.cards.value?.cards.map(\.tmdbId) ?? [])
         .animation(.snappy, value: store.notes.value?.newEpisodes.map(\.tmdbId) ?? [])
     }
 
@@ -134,16 +138,18 @@ struct ContinueCardRow: View {
                     .id(card.next.episodeId)
                     .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity),
                                         removal: .move(edge: .top).combined(with: .opacity)))
-                HStack(spacing: 8) {
-                    Text(card.remaining == 1 ? "noch 1 Folge" : "noch \(card.remaining) Folgen")
-                        .contentTransition(.numericText(value: Double(card.remaining)))
-                    if let link = card.watchLink, let url = URL(string: link.url) {
-                        Button(link.label) { openURL(url) }
-                            .buttonStyle(.borderless)
-                    }
+                // One line each, so the card keeps its height when the count changes.
+                Text(card.remaining == 1 ? "noch 1 Folge" : "noch \(card.remaining) Folgen")
+                    .contentTransition(.numericText(value: Double(card.remaining)))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                if let link = card.watchLink, let url = URL(string: link.url) {
+                    Button(link.label) { openURL(url) }
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        .lineLimit(1)
                 }
-                .font(.caption)
-                .foregroundStyle(.secondary)
             }
             .clipped()
             .animation(.snappy(duration: 0.4), value: card.next.episodeId)
