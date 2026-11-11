@@ -9,7 +9,7 @@ struct MovieView: View {
 
     var body: some View {
         Group {
-            if let store { MovieContent(store: store) } else { ProgressView() }
+            if let store { MovieContent(store: store) } else { DetailSkeleton(rows: 1) }
         }
         .task {
             if store == nil { store = MovieStore(tmdbID: tmdbID, api: model.api, app: model) }
@@ -21,7 +21,6 @@ struct MovieView: View {
 private struct MovieContent: View {
     @Bindable var store: MovieStore
     @State private var showWatchSheet = false
-    @State private var showComment = false
     @State private var feedback = 0
 
     var body: some View {
@@ -31,7 +30,7 @@ private struct MovieContent: View {
             } else if let error = store.detail.error {
                 ErrorView(error: error) { await store.load() }
             } else {
-                ProgressView()
+                DetailSkeleton(rows: 1)
             }
         }
         .navigationTitle(store.detail.value?.name ?? "")
@@ -41,11 +40,6 @@ private struct MovieContent: View {
         .sheet(isPresented: $showWatchSheet) {
             WatchSheet(title: store.detail.value?.name ?? "") { choice in
                 Task { await store.mark(choice: choice); feedback += 1 }
-            }
-        }
-        .sheet(isPresented: $showComment) {
-            CommentSheet(title: "Kommentar", text: store.detail.value?.comment ?? "") { text in
-                Task { await store.setComment(text) }
             }
         }
         .alert("Das hat nicht geklappt", isPresented: Binding(get: { store.actionError != nil },
@@ -65,10 +59,12 @@ private struct MovieContent: View {
                                 .compactMap { $0 }.joined(separator: " · "),
                             overview: detail.overview)
                 RatingControl(rating: detail.rating) { rating in Task { await store.setRating(rating) } }
-                Button { showComment = true } label: {
-                    LabeledContent("Kommentar") { Text(detail.comment ?? "Hinzufügen").lineLimit(2) }
-                }
                 LinksRow(links: detail.links)
+            }
+            Section("Kommentar") {
+                CommentField(placeholder: "Was hältst du von dem Film?", saved: detail.comment) { text in
+                    Task { await store.setComment(text) }
+                }
             }
             Section("Gesehen") {
                 ForEach(detail.watches, id: \.id) { watch in

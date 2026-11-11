@@ -23,6 +23,18 @@ public final class SeriesStore {
 
     private var path: Operations.getSeries.Input.Path { .init(tmdbID: tmdbID) }
 
+    /// Seasons shown open when the page appears: the first season with an aired, unwatched episode; when everything
+    /// aired is watched, the season still airing; a finished series starts collapsed.
+    public nonisolated static func initiallyExpanded(_ detail: Components.Schemas.SeriesDetail) -> Set<Int> {
+        if let next = detail.seasons.first(where: { season in season.episodes.contains { $0.aired && $0.watches.isEmpty } }) {
+            return [next.number]
+        }
+        if let running = detail.seasons.first(where: { season in season.episodes.contains { !$0.aired } }) {
+            return [running.number]
+        }
+        return []
+    }
+
     public func load() async {
         detail.begin()
         let version = app.changeVersion

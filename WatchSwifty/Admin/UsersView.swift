@@ -32,7 +32,8 @@ private struct UsersContent: View {
                     if user.isAdmin { Text("Admin").font(.caption).foregroundStyle(.tint) }
                     if store.isSelf(user) { Text("Du").font(.caption).foregroundStyle(.secondary) }
                 }
-                Text(details(user)).font(.caption).foregroundStyle(.secondary)
+                let info = details(user)
+                if !info.isEmpty { Text(info).font(.caption).foregroundStyle(.secondary) }
             }
             .contextMenu {
                 if !store.isSelf(user) {

@@ -36,10 +36,16 @@ private struct StatsContent: View {
         .toolbar {
             if let years = store.stats.value?.years, !years.isEmpty {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Picker("Jahr", selection: Binding(get: { store.year }, set: { year in Task { await store.select(year: year) } })) {
-                        Text("Aktuell").tag(Int?.none)
-                        ForEach(years, id: \.year) { Text(String($0.year)).tag(Int?.some($0.year)) }
+                    Menu {
+                        Picker("Jahr", selection: Binding(get: { store.year }, set: { year in Task { await store.select(year: year) } })) {
+                            Text("Aktuell").tag(Int?.none)
+                            ForEach(years, id: \.year) { Text(String($0.year)).tag(Int?.some($0.year)) }
+                        }
+                    } label: {
+                        Label(store.year.map(String.init) ?? "Aktuell", systemImage: "calendar")
+                            .labelStyle(.titleAndIcon)
                     }
+                    .fixedSize()
                 }
             }
         }

@@ -10,11 +10,7 @@ struct SeriesView: View {
 
     var body: some View {
         Group {
-            if let store {
-                SeriesContent(store: store)
-            } else {
-                ProgressView()
-            }
+            if let store { SeriesContent(store: store) } else { DetailSkeleton() }
         }
         .task {
             if store == nil { store = SeriesStore(tmdbID: tmdbID, api: model.api, app: model) }
@@ -26,9 +22,8 @@ struct SeriesView: View {
 private struct SeriesContent: View {
     @Bindable var store: SeriesStore
     @Environment(\.scenePhase) private var scenePhase
-    @State private var watchTarget: EpisodeTarget?
-    @State private var watchesEpisode: Components.Schemas.Episode?
-    @State private var commentTarget: CommentTarget?
+    @State private var selected: EpisodeTarget?
+    @State private var expanded: Set<Int>?
     @State private var confirmAll = false
     @State private var feedback = 0
 
@@ -39,7 +34,7 @@ private struct SeriesContent: View {
             } else if let error = store.detail.error {
                 ErrorView(error: error) { await store.load() }
             } else {
-                ProgressView()
+                DetailSkeleton()
             }
         }
         .navigationTitle(store.detail.value?.name ?? "")
@@ -48,19 +43,11 @@ private struct SeriesContent: View {
         .refreshable { await store.load() }
         .onAppear { Task { await store.reloadIfStale() } }
         .onChange(of: scenePhase) { _, phase in if phase == .active { Task { await store.load() } } }
-        .sheet(item: $watchTarget) { target in
-            WatchSheet(title: target.title) { choice in
-                Task { await store.markEpisode(season: target.season, number: target.number, choice: choice); feedback += 1 }
-            }
+        .onChange(of: store.detail.value?.tmdbId, initial: true) {
+            if expanded == nil, let detail = store.detail.value { expanded = SeriesStore.initiallyExpanded(detail) }
         }
-        .sheet(item: $watchesEpisode) { episode in WatchesSheet(episode: episode) }
-        .sheet(item: $commentTarget) { target in
-            CommentSheet(title: target.title, text: target.text) { text in
-                Task {
-                    if let season = target.season { await store.setSeasonComment(season: season, text: text) }
-                    else { await store.setComment(text) }
-                }
-            }
+        .sheet(item: $selected) { target in
+            EpisodeSheet(store: store, target: target) { feedback += 1 }
         }
         .confirmationDialog("Alle Folgen als gesehen markieren?", isPresented: $confirmAll, titleVisibility: .visible) {
             Button("Alles gesehen") { Task { await store.markAll(); feedback += 1 } }
@@ -77,6 +64,11 @@ private struct SeriesContent: View {
         Binding(get: { store.actionError != nil }, set: { if !$0 { store.actionError = nil } })
     }
 
+    private func isExpanded(_ season: Int) -> Binding<Bool> {
+        Binding(get: { expanded?.contains(season) ?? false },
+                set: { open in withAnimation { if open { expanded?.insert(season) } else { expanded?.remove(season) } } })
+    }
+
     private func list(_ detail: Components.Schemas.SeriesDetail) -> some View {
         List {
             Section {
@@ -84,63 +76,43 @@ private struct SeriesContent: View {
                             subtitle: [detail.year.map(String.init), detail.status].compactMap { $0 }.joined(separator: " · "),
                             overview: detail.overview)
                 RatingControl(rating: detail.rating) { rating in Task { await store.setRating(rating) } }
-                Button {
-                    commentTarget = CommentTarget(title: "Kommentar", text: detail.comment ?? "", season: nil)
-                } label: {
-                    LabeledContent("Kommentar") { Text(detail.comment ?? "Hinzufügen").lineLimit(2) }
-                }
                 LinksRow(links: detail.links)
             }
+            Section("Kommentar") {
+                CommentField(placeholder: "Was hältst du von der Serie?", saved: detail.comment) { text in
+                    Task { await store.setComment(text) }
+                }
+            }
             ForEach(detail.seasons, id: \.number) { season in
-                Section {
+                Section(isExpanded: isExpanded(season.number)) {
                     ForEach(season.episodes, id: \.number) { episode in
-                        EpisodeRow(episode: episode)
-                            .contentShape(Rectangle())
-                            .onTapGesture { if !episode.watches.isEmpty { watchesEpisode = episode } }
-                            .swipeActions(edge: .leading) {
-                                if episode.aired {
-                                    Button("Gesehen") {
-                                        Task { await store.markEpisode(season: season.number, number: episode.number, choice: WatchChoice()); feedback += 1 }
-                                    }
-                                    .tint(.green)
-                                    Button("Bis hier") {
-                                        Task { await store.markUpTo(season: season.number, number: episode.number); feedback += 1 }
-                                    }
-                                    .tint(.blue)
-                                }
-                            }
-                            .contextMenu {
-                                if episode.aired {
-                                    Button("Gesehen am …", systemImage: "calendar") {
-                                        watchTarget = EpisodeTarget(season: season.number, number: episode.number,
-                                                                    title: "S\(season.number)E\(episode.number) · \(episode.name)")
-                                    }
-                                }
-                                if !episode.watches.isEmpty {
-                                    Button("Nicht gesehen", systemImage: "xmark.circle", role: .destructive) {
-                                        Task { await store.unmarkEpisode(season: season.number, number: episode.number) }
-                                    }
-                                }
-                            }
-                    }
-                } header: {
-                    HStack {
-                        Text(season.title)
-                        Spacer()
-                        Text("\(season.watchedCount)/\(season.episodes.count)")
-                        Menu {
-                            Button("Staffel gesehen", systemImage: "checkmark.circle") {
-                                Task { await store.markSeason(season.number); feedback += 1 }
-                            }
-                            Button("Staffelkommentar", systemImage: "text.bubble") {
-                                commentTarget = CommentTarget(title: season.title, text: season.comment ?? "", season: season.number)
-                            }
+                        Button {
+                            selected = EpisodeTarget(season: season.number, number: episode.number)
                         } label: {
-                            Image(systemName: "ellipsis.circle").accessibilityLabel("Staffel-Aktionen")
+                            EpisodeRow(episode: episode)
+                        }
+                        .tint(.primary)
+                        .swipeActions(edge: .leading) {
+                            if episode.aired {
+                                Button("Gesehen") {
+                                    Task { await store.markEpisode(season: season.number, number: episode.number, choice: WatchChoice()); feedback += 1 }
+                                }
+                                .tint(.green)
+                                Button("Bis hier") {
+                                    Task { await store.markUpTo(season: season.number, number: episode.number); feedback += 1 }
+                                }
+                                .tint(.blue)
+                            }
                         }
                     }
-                } footer: {
-                    if let comment = season.comment, !comment.isEmpty { Text(comment) }
+                    CommentField(placeholder: "Kommentar zu \(season.title) …", saved: season.comment) { text in
+                        Task { await store.setSeasonComment(season: season.number, text: text) }
+                    }
+                    .font(.callout)
+                } header: {
+                    SeasonHeader(season: season, isExpanded: isExpanded(season.number)) {
+                        Task { await store.markSeason(season.number); feedback += 1 }
+                    }
                 }
             }
         }
@@ -165,20 +137,41 @@ private struct SeriesContent: View {
     }
 }
 
-private struct EpisodeTarget: Identifiable {
+/// Tappable season header: chevron, title, progress, „Staffel gesehen“.
+private struct SeasonHeader: View {
+    let season: Components.Schemas.Season
+    @Binding var isExpanded: Bool
+    let onMarkSeason: () -> Void
+
+    var body: some View {
+        HStack {
+            Button {
+                isExpanded.toggle()
+            } label: {
+                HStack {
+                    Image(systemName: "chevron.right")
+                        .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                        .font(.caption.bold())
+                    Text(season.title)
+                    Spacer()
+                    Text("\(season.watchedCount)/\(season.episodes.count)")
+                }
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("\(season.title), \(season.watchedCount) von \(season.episodes.count) gesehen")
+            .accessibilityHint(isExpanded ? "Zuklappen" : "Aufklappen")
+            Menu {
+                Button("Staffel gesehen", systemImage: "checkmark.circle", action: onMarkSeason)
+            } label: {
+                Image(systemName: "ellipsis.circle").accessibilityLabel("Staffel-Aktionen")
+            }
+        }
+    }
+}
+
+struct EpisodeTarget: Identifiable, Hashable {
     let season: Int
     let number: Int
-    let title: String
     var id: String { "\(season)-\(number)" }
-}
-
-struct CommentTarget: Identifiable {
-    let title: String
-    let text: String
-    let season: Int?
-    var id: String { "\(season ?? -1)" }
-}
-
-extension Components.Schemas.Episode: @retroactive Identifiable {
-    public var id: String { "\(season)-\(number)" }
 }
