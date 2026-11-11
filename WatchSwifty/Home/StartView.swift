@@ -105,6 +105,8 @@ private struct StartContent: View {
                 }
             }
         }
+        .animation(.snappy, value: store.cards.value?.cards.map(\.tmdbId) ?? [])
+        .animation(.snappy, value: store.notes.value?.newEpisodes.map(\.tmdbId) ?? [])
     }
 
     private func markNext(_ id: Int) {
@@ -126,10 +128,15 @@ struct ContinueCardRow: View {
             PosterImage(path: card.posterPath, width: 56)
             VStack(alignment: .leading, spacing: 3) {
                 Text(card.name).font(.headline)
+                // The marked episode slides up and out, the new one comes in from below.
                 Text("S\(card.next.season)E\(card.next.number) · \(card.next.name)")
                     .font(.subheadline).lineLimit(1)
+                    .id(card.next.episodeId)
+                    .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity),
+                                        removal: .move(edge: .top).combined(with: .opacity)))
                 HStack(spacing: 8) {
                     Text(card.remaining == 1 ? "noch 1 Folge" : "noch \(card.remaining) Folgen")
+                        .contentTransition(.numericText(value: Double(card.remaining)))
                     if let link = card.watchLink, let url = URL(string: link.url) {
                         Button(link.label) { openURL(url) }
                             .buttonStyle(.borderless)
@@ -138,13 +145,15 @@ struct ContinueCardRow: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
+            .clipped()
+            .animation(.snappy(duration: 0.4), value: card.next.episodeId)
             Spacer()
             Button(action: onWatched) {
-                if busy {
-                    ProgressView().controlSize(.small)
-                } else {
-                    Text("Gesehen")
+                ZStack {
+                    Text("Gesehen").opacity(busy ? 0 : 1)
+                    if busy { ProgressView().controlSize(.small) }
                 }
+                .animation(.easeInOut(duration: 0.2), value: busy)
             }
             .buttonStyle(.bordered)
             .controlSize(.small)

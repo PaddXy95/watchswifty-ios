@@ -78,7 +78,12 @@ private struct SeriesContent: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text("Als Nächstes").font(.caption).foregroundStyle(.secondary)
                             Text("S\(next.season)E\(next.number) · \(next.name)").font(.headline).lineLimit(2)
+                                .id(next.episodeId)
+                                .transition(.asymmetric(insertion: .move(edge: .bottom).combined(with: .opacity),
+                                        removal: .move(edge: .top).combined(with: .opacity)))
                         }
+                        .clipped()
+                        .animation(.snappy(duration: 0.4), value: next.episodeId)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .contentShape(Rectangle())
                         .onTapGesture { selected = EpisodeTarget(season: next.season, number: next.number) }
@@ -143,6 +148,8 @@ private struct SeriesContent: View {
             }
         }
         .disabled(store.busy)
+        .animation(.snappy, value: detail.next?.episodeId)
+        .animation(.snappy, value: detail.seasons.map(\.watchedCount))
     }
 
     private func menu(_ detail: Components.Schemas.SeriesDetail) -> some ToolbarContent {

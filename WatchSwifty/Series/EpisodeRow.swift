@@ -9,6 +9,7 @@ struct EpisodeRow: View {
         HStack(alignment: .firstTextBaseline) {
             Image(systemName: episode.watches.isEmpty ? "circle" : "checkmark.circle.fill")
                 .foregroundStyle(episode.watches.isEmpty ? Color.secondary : Color.green)
+                .contentTransition(.symbolEffect(.replace))
                 .accessibilityLabel(episode.watches.isEmpty ? "Nicht gesehen" : "Gesehen")
             VStack(alignment: .leading, spacing: 2) {
                 Text("\(episode.number). \(episode.name)")
