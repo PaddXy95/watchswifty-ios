@@ -7,8 +7,9 @@ Film-Tracker. Die App kann dasselbe wie die Weboberfläche und spricht nur mit d
 ## Voraussetzungen
 - Xcode 26 oder neuer, iOS 26 oder neuer (nur iPhone)
 - [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
-- Während der Entwicklung liegt das Server-Repo `watchswifty` direkt neben diesem Repo
-  (`../watchswifty`); daraus kommt die Client-Bibliothek `WatchSwiftyClient`.
+- Die Client-Bibliothek `WatchSwiftyClient` kommt aus dem Server-Repo `watchswifty`, gepinnt auf ein Release-Tag
+  (`Packages/WatchSwiftyCore/Package.swift`). Für noch nicht veröffentlichte Server-Änderungen dort kurzzeitig auf
+  `.package(path: "../../../watchswifty")` umstellen (Server-Repo neben diesem Repo) – so nicht committen.
 
 ## Bauen
 ```bash

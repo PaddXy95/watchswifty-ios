@@ -1,8 +1,9 @@
 # CLAUDE.md
 
 WatchSwifty iOS app: SwiftUI, iOS 26+, iPhone only, Swift 6 strict concurrency. Talks only to the WatchSwifty App
-API through the generated `WatchSwiftyClient` (server repo `../watchswifty`, target `WatchSwiftyClient`). No local
-database: stores hold the generated API types. Design: `../watchswifty/docs/superpowers/specs/2026-11-10-ios-app-design.md`,
+API through the generated `WatchSwiftyClient` (server repo `PaddXy95/watchswifty`, pinned to a release tag in
+`Packages/WatchSwiftyCore/Package.swift`; for unreleased server changes use `path: "../../../watchswifty"` locally,
+never committed). No local database: stores hold the generated API types. Design: `../watchswifty/docs/superpowers/specs/2026-11-10-ios-app-design.md`,
 plan: `../watchswifty/docs/superpowers/plans/2026-11-11-ios-app.md`.
 
 **Languages:** everything the user sees is German (String Catalog `de` only); code identifiers and comments English;

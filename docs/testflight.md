@@ -5,7 +5,8 @@ Apples Beta-Prüfung; Builds laufen nach 90 Tagen ab.
 
 ## Einmalig
 1. **Server-Release** mit der Client-Bibliothek `WatchSwiftyClient` (siehe Server-Repo, CHANGELOG); die App ist auf
-   dieses Tag gepinnt (`Packages/WatchSwiftyCore/Package.swift`, `AppInfo.minimumServerVersion`).
+   dieses Tag gepinnt (`Packages/WatchSwiftyCore/Package.swift`). `AppInfo.minimumServerVersion` bleibt niedriger:
+   Auf älteren Servern blendet die App fehlende Funktionen aus (z. B. Benachrichtigungen vor 0.4.0).
 2. **Demo-Instanz** starten (`ops/demo/docker-compose.yml`), unter eigener HTTPS-Adresse erreichbar machen, als `demo`
    anmelden, TMDB-Token unter Konto eintragen, `netflix-sample.csv` aus dem Server-Repo importieren.
 3. **App Store Connect:** neue App, Bundle-ID `dev.patmei.watchswifty`, Name „WatchSwifty“, Primärsprache Deutsch.
