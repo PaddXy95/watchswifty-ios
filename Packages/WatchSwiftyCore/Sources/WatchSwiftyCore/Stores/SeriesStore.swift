@@ -92,12 +92,22 @@ public final class SeriesStore {
         }
     }
 
-    public func markSeason(_ season: Int) async {
-        await mutate { try await $0.markSeason(path: .init(tmdbID: self.tmdbID, season: season), body: .json(.init())).ok.body.json }
+    /// „Ganze Staffel gesehen“: every aired episode of the season not watched yet, undated, with `service`.
+    public func markSeason(_ season: Int, service: ServiceChoice = .lastUsed) async {
+        let body = WatchChoice(service: service).input
+        await mutate { try await $0.markSeason(path: .init(tmdbID: self.tmdbID, season: season), body: .json(body)).ok.body.json }
     }
 
-    public func markAll() async {
-        await mutate { try await $0.markSeries(path: .init(tmdbID: self.tmdbID), body: .json(.init())).ok.body.json }
+    /// „Gesamte Serie gesehen“: every aired regular episode not watched yet, undated, with `service`.
+    public func markAll(service: ServiceChoice = .lastUsed) async {
+        let body = WatchChoice(service: service).input
+        await mutate { try await $0.markSeries(path: .init(tmdbID: self.tmdbID), body: .json(body)).ok.body.json }
+    }
+
+    /// Preselected service for a whole season or series: the one last used for the series, else „Ohne Dienst“ (as in
+    /// the web).
+    public nonisolated static func bulkServicePreset(_ detail: Components.Schemas.SeriesDetail) -> ServiceChoice {
+        detail.lastService.map { .service($0) } ?? .none
     }
 
     public func setHidden(_ hidden: Bool) async {

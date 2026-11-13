@@ -24,7 +24,7 @@ private struct SeriesContent: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selected: EpisodeTarget?
     @State private var expanded: Set<Int>?
-    @State private var confirmAll = false
+    @State private var bulk: BulkTarget?
     @State private var feedback = 0
 
     var body: some View {
@@ -50,8 +50,16 @@ private struct SeriesContent: View {
         .sheet(item: $selected) { target in
             EpisodeSheet(store: store, target: target) { feedback += 1 }
         }
-        .confirmationDialog("Alle Folgen als gesehen markieren?", isPresented: $confirmAll, titleVisibility: .visible) {
-            Button("Alles gesehen") { Task { await store.markAll(); feedback += 1 } }
+        .sheet(item: $bulk) { target in
+            BulkWatchSheet(target: target) { service in
+                Task {
+                    switch target.scope {
+                    case .season(let number): await store.markSeason(number, service: service)
+                    case .series: await store.markAll(service: service)
+                    }
+                    feedback += 1
+                }
+            }
         }
         .alert("Das hat nicht geklappt", isPresented: errorShown) {
             Button("OK", role: .cancel) {}
@@ -142,7 +150,8 @@ private struct SeriesContent: View {
                     .font(.callout)
                 } header: {
                     SeasonHeader(season: season, isExpanded: isExpanded(season.number)) {
-                        Task { await store.markSeason(season.number); feedback += 1 }
+                        bulk = BulkTarget(scope: .season(season.number), seasonTitle: season.title,
+                                          preset: SeriesStore.bulkServicePreset(detail))
                     }
                 }
             }
@@ -162,7 +171,9 @@ private struct SeriesContent: View {
                     Label("Ausblenden", systemImage: "eye.slash")
                 }
                 Divider()
-                Button("Alles gesehen", systemImage: "checkmark.circle.fill") { confirmAll = true }
+                Button("Gesamte Serie gesehen", systemImage: "checkmark.circle.fill") {
+                    bulk = BulkTarget(scope: .series, seasonTitle: nil, preset: SeriesStore.bulkServicePreset(detail))
+                }
             } label: {
                 Image(systemName: "ellipsis.circle").accessibilityLabel("Aktionen")
             }
@@ -170,7 +181,7 @@ private struct SeriesContent: View {
     }
 }
 
-/// Tappable season header: chevron, title, progress, „Staffel gesehen“.
+/// Tappable season header: chevron, title, progress, „Ganze Staffel gesehen“.
 private struct SeasonHeader: View {
     let season: Components.Schemas.Season
     @Binding var isExpanded: Bool
@@ -195,11 +206,59 @@ private struct SeasonHeader: View {
             .accessibilityLabel("\(season.title), \(season.watchedCount) von \(season.episodes.count) gesehen")
             .accessibilityHint(isExpanded ? "Zuklappen" : "Aufklappen")
             Menu {
-                Button("Staffel gesehen", systemImage: "checkmark.circle", action: onMarkSeason)
+                Button("Ganze Staffel gesehen", systemImage: "checkmark.circle", action: onMarkSeason)
             } label: {
                 Image(systemName: "ellipsis.circle").accessibilityLabel("Staffel-Aktionen")
             }
         }
+    }
+}
+
+/// „Ganze Staffel gesehen“ / „Gesamte Serie gesehen“ with the service preselected as in the web.
+struct BulkTarget: Identifiable {
+    enum Scope: Hashable { case season(Int), series }
+    let scope: Scope
+    let seasonTitle: String?
+    let preset: ServiceChoice
+    var id: Scope { scope }
+}
+
+/// Asks for the service before a whole season or series is marked (without a date, as in the web).
+private struct BulkWatchSheet: View {
+    let target: BulkTarget
+    let onSave: (ServiceChoice) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var service: ServiceChoice
+
+    init(target: BulkTarget, onSave: @escaping (ServiceChoice) -> Void) {
+        self.target = target
+        self.onSave = onSave
+        _service = State(initialValue: target.preset)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ServicePicker(selection: $service, allowsLastUsed: false)
+                } footer: {
+                    Text(target.seasonTitle.map { "Alle ausgestrahlten Folgen von „\($0)“, die noch nicht gesehen sind, werden ohne Datum abgehakt." }
+                         ?? "Alle ausgestrahlten Folgen, die noch nicht gesehen sind, werden ohne Datum abgehakt.")
+                }
+            }
+            .navigationTitle(target.seasonTitle == nil ? "Gesamte Serie gesehen" : "Ganze Staffel gesehen")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Gesehen") {
+                        onSave(service)
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
     }
 }
 

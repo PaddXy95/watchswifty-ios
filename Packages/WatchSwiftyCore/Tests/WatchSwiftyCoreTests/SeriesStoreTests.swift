@@ -103,6 +103,29 @@ import WatchSwiftyClient
         #expect(Fixtures.jsonObject(transport.requests.last?.body)["comment"] as? String == "Stark")
     }
 
+    @Test func seasonAndSeriesSendTheChosenService() async {
+        let transport = FakeTransport()
+        for path in ["/api/v1/tv/1/seasons/2/watch", "/api/v1/tv/1/watch-all"] {
+            transport.on(.post, path, json: 200, Fixtures.series(watched: true))
+        }
+        let model = await Fixtures.readyModel(transport)
+        let store = SeriesStore(tmdbID: 1, api: model.api, app: model)
+        await store.markSeason(2, service: .service(.disneyPlus))
+        #expect(Fixtures.jsonObject(transport.requests.last?.body) as NSDictionary == ["service": "disney_plus"])
+        await store.markAll(service: .none)
+        #expect(Fixtures.jsonObject(transport.requests.last?.body) as NSDictionary == ["service": "unknown"])
+        #expect(store.actionError == nil)
+    }
+
+    @Test func bulkServicePresetIsTheLastUsedService() throws {
+        let decoder = JSONDecoder()
+        let withService = try decoder.decode(Components.Schemas.SeriesDetail.self, from: Data(Fixtures.series(watched: true, service: "wow").utf8))
+        #expect(SeriesStore.bulkServicePreset(withService) == .service(.wow))
+        var without = withService
+        without.lastService = nil
+        #expect(SeriesStore.bulkServicePreset(without) == ServiceChoice.none)
+    }
+
     /// Behind a reverse proxy a POST without a body can reach the server as an empty body, which the server then fails
     /// to read as JSON („The given data was not valid JSON“). Marks without a date therefore always send `{}`.
     @Test func undatedMarksSendAnEmptyJSONObject() async throws {
