@@ -127,6 +127,31 @@ import WatchSwiftyClient
         #expect(Fixtures.jsonObject(transport.requests.last?.body)["currentPassword"] == nil)
     }
 
+    @Test(arguments: ["0.5.0", "0.6.1-beta", "dev"])
+    func webhookKeyWithoutPasswordOnNewerServers(version: String) async {
+        let transport = FakeTransport()
+        transport.on(.get, "/api/v1/version", json: 200, #"{"version":"\#(version)"}"#)
+        transport.on(.get, "/api/v1/me", json: 200, Fixtures.me)
+        transport.on(.put, "/api/v1/me/notifications/webhook-key", json: 200, Self.prefs(webhookConfigured: true, hasKey: true))
+        transport.on(.delete, "/api/v1/me/notifications/webhook-key", json: 200, Self.prefs(webhookConfigured: true))
+        let model = AppModel(environment: Fixtures.environment(transport: transport, token: Fixtures.token))
+        await model.start()
+        await model.startupChecks?.value
+        let store = AccountStore(api: model.api, app: model)
+        #expect(store.webhookKeyNeedsPassword == false)
+        #expect(await store.setWebhookKey("0123456789abcdef", currentPassword: ""))
+        #expect(Fixtures.jsonObject(transport.requests.last?.body)["currentPassword"] == nil)
+        #expect(await store.deleteWebhookKey(currentPassword: ""))
+        #expect(transport.requests.last?.body == nil)
+    }
+
+    @Test func webhookKeyAsksPasswordUntilServerVersionIsKnown() async {
+        let transport = FakeTransport()
+        let model = AppModel(environment: Fixtures.environment(transport: transport, token: Fixtures.token))
+        let store = AccountStore(api: model.api, app: model)
+        #expect(store.webhookKeyNeedsPassword)
+    }
+
     @Test func wrongPasswordShowsServerMessage() async {
         let transport = FakeTransport()
         let store = await Self.loadedStore(transport, prefs: Self.prefs(webhookConfigured: true))

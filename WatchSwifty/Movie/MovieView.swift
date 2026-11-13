@@ -62,7 +62,7 @@ private struct MovieContent: View {
                 TitleHeader(posterPath: detail.posterPath, title: detail.name,
                             subtitle: [detail.year.map(String.init), detail.runtime.map { "\($0) min" }]
                                 .compactMap { $0 }.joined(separator: " · "),
-                            overview: detail.overview)
+                            genres: detail.genres, overview: detail.overview)
                 RatingControl(rating: detail.rating) { rating in Task { await store.setRating(rating) } }
                 LinksRow(links: detail.links)
             }

@@ -20,6 +20,13 @@ import Testing
         #expect(Day.date(from: "07.11.2026", calendar: berlin) == nil)
     }
 
+    @Test func watchedRangeAsInTheWeb() {
+        #expect(Day.watchedRange(first: "2026-11-06", last: "2026-11-06", calendar: berlin) == "gesehen am 06.11.2026")
+        #expect(Day.watchedRange(first: "2025-03-02", last: "2026-11-06", calendar: berlin) == "gesehen 02.03.2025 – 06.11.2026")
+        #expect(Day.watchedRange(first: nil, last: "2026-11-06", calendar: berlin) == "gesehen am 06.11.2026")
+        #expect(Day.watchedRange(first: nil, last: nil, calendar: berlin) == nil)
+    }
+
     @Test func displaysGermanDate() {
         #expect(Day.display("2026-11-07", calendar: berlin) == "07.11.2026")
         #expect(Day.display("kaputt", calendar: berlin) == "kaputt")

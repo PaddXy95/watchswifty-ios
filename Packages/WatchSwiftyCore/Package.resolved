@@ -1,5 +1,5 @@
 {
-  "originHash" : "11f0760b9e4fb00b8f2d0b0162a98e0bb3bb1c07eb1d99ca8e492f86ff4c4034",
+  "originHash" : "129b945171cedc5c88120e76e7a9efe038f589a3a0684859b0c4f3e4391932d1",
   "pins" : [
     {
       "identity" : "openapikit",
@@ -87,8 +87,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/PaddXy95/watchswifty.git",
       "state" : {
-        "revision" : "09c64d3695a2119db4f2bb44cc4d7478c654bdd2",
-        "version" : "0.4.0"
+        "revision" : "e03391652d5d415f17b40d90c4c414f55fb79416",
+        "version" : "0.5.0"
       }
     },
     {

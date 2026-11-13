@@ -22,12 +22,25 @@ private struct LibraryContent: View {
     let store: LibraryStore
     private let columns = [GridItem(.adaptive(minimum: 100), spacing: 12)]
 
+    /// The selected genre stays choosable even when no loaded title has it any more.
+    private var genreChoices: [GenreValue] {
+        store.genre.map { GenreValue.sortedByName(store.availableGenres + [$0]) } ?? store.availableGenres
+    }
+
     var body: some View {
         Group {
             if store.entries.value == nil, let error = store.entries.error {
                 ErrorView(error: error) { await store.load() }
             } else if store.entries.value == nil {
                 GridSkeleton()
+            } else if let entries = store.entries.value, entries.isEmpty, let genre = store.genre {
+                ContentUnavailableView {
+                    Label("Keine Titel", systemImage: "books.vertical")
+                } description: {
+                    Text("Kein Titel mit dem Genre „\(genre.displayName)“.")
+                } actions: {
+                    Button("Alle Genres zeigen") { Task { await store.set(genre: nil) } }
+                }
             } else if let entries = store.entries.value, entries.isEmpty {
                 ContentUnavailableView("Keine Titel", systemImage: "books.vertical",
                                        description: Text("Hier erscheint alles, was du gesehen, bewertet oder kommentiert hast."))
@@ -59,8 +72,17 @@ private struct LibraryContent: View {
                                                            set: { value in Task { await store.set(filter: store.filter, sort: value) } })) {
                         ForEach(LibraryStore.Sort.allCases, id: \.self) { Text($0.label).tag($0) }
                     }
+                    if !store.availableGenres.isEmpty || store.genre != nil {
+                        Picker("Genre", selection: Binding(get: { store.genre },
+                                                           set: { value in Task { await store.set(genre: value) } })) {
+                            Text("Alle Genres").tag(GenreValue?.none)
+                            ForEach(genreChoices, id: \.self) { Text($0.displayName).tag(GenreValue?.some($0)) }
+                        }
+                        .pickerStyle(.menu)
+                    }
                 } label: {
-                    Image(systemName: "line.3.horizontal.decrease.circle").accessibilityLabel("Filter und Sortierung")
+                    Image(systemName: store.genre == nil ? "line.3.horizontal.decrease.circle" : "line.3.horizontal.decrease.circle.fill")
+                        .accessibilityLabel("Filter und Sortierung")
                 }
             }
         }

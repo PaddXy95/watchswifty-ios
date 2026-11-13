@@ -27,8 +27,16 @@ public final class AccountStore {
     /// Only accounts with a password, and only while the server allows password login (as in the web).
     public var canChangePassword: Bool { me.map { $0.hasPassword && $0.passwordLogin } ?? false }
     public var currentDeviceID: String? { app.token?.deviceID }
-    /// Setting or removing the KNot key asks for the current password on accounts that have one (SSO-only ones have none).
-    public var webhookKeyNeedsPassword: Bool { me?.hasPassword ?? true }
+    /// Servers before 0.5.0 ask for the current password when the KNot key is set or removed, on accounts that have
+    /// one (SSO-only ones have none); newer servers need none and ignore it.
+    public var webhookKeyNeedsPassword: Bool {
+        guard me?.hasPassword ?? true else { return false }
+        guard let reported = app.serverVersion else { return true }   // not answered yet: ask, an old server needs it
+        guard let version = ServerVersion(reported) else { return false }   // e.g. `dev`: a current build
+        return version < Self.webhookKeyWithoutPassword
+    }
+
+    private static let webhookKeyWithoutPassword = ServerVersion("0.5.0")!
     /// Konto page in the browser (manual tokens, SSO linking).
     public var webAccountURL: URL? { app.server?.baseURL.appending(path: "account") }
 

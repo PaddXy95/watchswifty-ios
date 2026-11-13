@@ -18,4 +18,15 @@ import WatchSwiftyClient
         #expect(ServiceValue(rawValue: "crunchyroll").displayName == "Anderer Dienst")
         #expect(ServiceValue.known.allSatisfy { $0.displayName != "Anderer Dienst" })
     }
+
+    @Test func genreDisplayNames() {
+        #expect(GenreValue.scienceFiction.displayName == "Science-Fiction")
+        #expect(GenreValue.romance.displayName == "Liebesfilm")
+        #expect(GenreValue(rawValue: "anime").displayName == "Anderes Genre")
+        #expect(GenreValue.known.allSatisfy { $0.displayName != "Anderes Genre" })
+        #expect(Set(GenreValue.known.map(\.displayName)).count == GenreValue.known.count)
+        #expect(GenreValue.sortedByName([.war, .action, .comedy, .war]) == [.action, .comedy, .war])
+        #expect(GenreValue.line([.crime, .drama]) == "Krimi · Drama")
+        #expect(GenreValue.line(nil).isEmpty)
+    }
 }

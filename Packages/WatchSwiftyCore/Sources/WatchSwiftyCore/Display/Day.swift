@@ -20,6 +20,16 @@ public enum Day {
         return String(format: "%02d.%02d.%04d", parts.day ?? 0, parts.month ?? 0, parts.year ?? 0)
     }
 
+    /// „gesehen am 06.11.2026“ or „gesehen 02.03.2025 – 06.11.2026“ (Netflix rows to review, as in the web); nil when
+    /// the server sends no days (before 0.5.0).
+    public static func watchedRange(first: String?, last: String?, calendar: Calendar = .current) -> String? {
+        guard let last, !last.isEmpty else { return nil }
+        let first = (first?.isEmpty ?? true) ? last : first!
+        return first == last
+            ? "gesehen am \(display(last, calendar: calendar))"
+            : "gesehen \(display(first, calendar: calendar)) – \(display(last, calendar: calendar))"
+    }
+
     /// Whole days from `today` to `day` (negative for the past); nil if either is not a day.
     public static func days(from today: String, to day: String, calendar: Calendar = .current) -> Int? {
         guard let start = date(from: today, calendar: calendar), let end = date(from: day, calendar: calendar) else { return nil }

@@ -101,7 +101,7 @@ private struct SeriesContent: View {
             Section {
                 TitleHeader(posterPath: detail.posterPath, title: detail.name,
                             subtitle: [detail.year.map(String.init), detail.status].compactMap { $0 }.joined(separator: " · "),
-                            overview: detail.overview)
+                            genres: detail.genres, overview: detail.overview)
                 RatingControl(rating: detail.rating) { rating in Task { await store.setRating(rating) } }
                 LinksRow(links: detail.links)
             }
