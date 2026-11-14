@@ -41,7 +41,7 @@
       "kind": "group",
       "name": "Products",
       "children": [
-        { "path": "<PRODUCTS>/WatchSwifty.app", "id": "F2B5FEF72C0F01741EAAA9AB", "index": false },
+        { "path": "<PRODUCTS>/WatchSwifty.app", "id": "F2B5FEF72C0F01741EAAA9AB", "type": "wrapper.application", "index": false },
       ],
     },
   ],
@@ -147,7 +147,6 @@
     "SWIFT_OPTIMIZATION_LEVEL[config=Release]": "-O",
     "SWIFT_STRICT_CONCURRENCY": "complete",
     "SWIFT_VERSION": "6.0",
-    "TARGETED_DEVICE_FAMILY": "1",
   },
   "last-upgrade": "14.3",
 }
