@@ -1,6 +1,337 @@
 {
   "sourceLanguage" : "de",
   "strings" : {
+    "… und %@ weitere" : {
+
+    },
+    "„%@“ und alle seine Daten werden gelöscht." : {
+
+    },
+    "[KNot](https://github.com/nexus421/KNot) leitet Webhooks als Mail weiter. Lege dort für jede Person ein eigenes Ziel mit ihrer Mail-Adresse an, erzeuge den Schlüssel mit „java -jar knot.jar key“ und gib ihn weiter – sie trägt ihn unter „Konto → Benachrichtigungen“ ein. Leer lassen schaltet den Webhook ab." : {
+
+    },
+    "%@ · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "%@ Filme hochgeladen" : {
+
+    },
+    "%@ Filme werden gesucht …" : {
+
+    },
+    "%@ neu · %@ schon bekannt · %@ übersprungen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ neu · %2$@ schon bekannt · %3$@ übersprungen"
+          }
+        }
+      }
+    },
+    "%@. %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@. %2$@"
+          }
+        }
+      }
+    },
+    "%@/%@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@/%2$@"
+          }
+        }
+      }
+    },
+    "%@×" : {
+
+    },
+    "★ %@" : {
+
+    },
+    "★ %@ / 10" : {
+
+    },
+    "1. Name der Folge" : {
+
+    },
+    "01.01.2024" : {
+
+    },
+    "2024 · Läuft" : {
+
+    },
+    "Abschnitt" : {
+
+    },
+    "Admin" : {
+
+    },
+    "Aktuell" : {
+
+    },
+    "Alle Genres" : {
+
+    },
+    "Als Nächstes" : {
+
+    },
+    "Anmelden" : {
+
+    },
+    "Bei %@ Titeln fehlt die Laufzeit; ihre Zeit ist nicht mitgezählt." : {
+
+    },
+    "Bei Netflix unter Konto → Profil → Wiedergabeaktivität → „Alle herunterladen“ (höchstens 10 MB)." : {
+
+    },
+    "Bei WatchSwifty anmelden" : {
+
+    },
+    "Benachrichtigungen" : {
+
+    },
+    "Daten" : {
+
+    },
+    "Dein eigener TMDB-Lesezugriffstoken für Suche und Titeldaten." : {
+
+    },
+    "Den Schlüssel bekommst du vom Admin. Er wird nach dem Speichern nicht mehr angezeigt." : {
+
+    },
+    "Der Passwort-Login ist per PASSWORD_LOGIN=true erzwungen (Notschalter). Der Schalter gilt wieder, sobald er entfernt ist." : {
+
+    },
+    "Der Server ist zu alt (%@). Diese App braucht mindestens %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "Der Server ist zu alt (%1$@). Diese App braucht mindestens %2$@."
+          }
+        }
+      }
+    },
+    "Der Server läuft in UTC – im Container TZ setzen, z. B. TZ=Europe/Berlin." : {
+
+    },
+    "Die Adresse deines WatchSwifty-Servers – per HTTPS oder über dein VPN." : {
+
+    },
+    "Die Anmeldung läuft im Browser-Fenster deines Servers. Die App sieht dein Passwort nie." : {
+
+    },
+    "Die gespeicherten Einstellungen sind mit dem Server-Schlüssel nicht lesbar – SSO ist aus. Bitte neu eintragen." : {
+
+    },
+    "Die gespeicherten Einstellungen sind nicht lesbar – bitte neu eintragen." : {
+
+    },
+    "Diese Anwendung verwendet TMDB und die TMDB-APIs, ist aber nicht von TMDB unterstützt, zertifiziert oder anderweitig genehmigt." : {
+
+    },
+    "Diese Schritte laufen über die Weboberfläche, weil sie eine Anmeldung im Browser brauchen." : {
+
+    },
+    "Dieser Link wird nur jetzt angezeigt." : {
+
+    },
+    "Dieses Gerät" : {
+
+    },
+    "Du" : {
+
+    },
+    "Ein Titel zählt bei jedem seiner Genres; Titel, deren Genres noch nicht geladen sind, fehlen." : {
+
+    },
+    "Eine kurze Beschreibung der Handlung, die hier gleich erscheint und ein paar Zeilen lang ist." : {
+
+    },
+    "Eine Liste deiner Filme als CSV (höchstens 2 MB), z. B. ein Export aus Letterboxd." : {
+
+    },
+    "Einladung per Mail" : {
+
+    },
+    "Genres" : {
+
+    },
+    "Gerätename" : {
+
+    },
+    "Gesehen" : {
+
+    },
+    "Hier erscheint alles, was du gesehen, bewertet oder kommentiert hast." : {
+
+    },
+    "Hochladen" : {
+
+    },
+    "https://watch.example.de" : {
+
+    },
+    "Im Browser" : {
+
+    },
+    "In der Bibliothek" : {
+
+    },
+    "In der Bibliothek · %@/%@ gesehen" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "In der Bibliothek · %1$@/%2$@ gesehen"
+          }
+        }
+      }
+    },
+    "Kein Titel mit dem Genre „%@“." : {
+
+    },
+    "Keine" : {
+
+    },
+    "Keine Beschreibung vorhanden." : {
+
+    },
+    "Kommentar" : {
+
+    },
+    "Leer lassen, um die Adresse zu entfernen." : {
+
+    },
+    "Markierte Folgen und Filme erscheinen hier." : {
+
+    },
+    "Meistgesehene Serien" : {
+
+    },
+    "Meldet dieses Gerät beim Server ab. Danach ist eine neue Anmeldung nötig." : {
+
+    },
+    "Neue Folgen beobachteter Serien. Geprüft wird täglich um %@ Uhr; alles Neue kommt in einer Nachricht. Der Hinweis auf neu verbundene Geräte geht immer über denselben Weg." : {
+
+    },
+    "Neue Folgen deiner beobachteten Serien erscheinen hier, sobald sie angekündigt sind." : {
+
+    },
+    "Nicht zugeordnet (%@)" : {
+
+    },
+    "Noch kein Versandweg: hinterlege eine Mail-Adresse oder einen Webhook-Schlüssel – oder der Admin hat den Versand noch nicht eingerichtet." : {
+
+    },
+    "Ohne Dienst" : {
+
+    },
+    "Ordne noch %@ Zeilen zu …" : {
+
+    },
+    "Passwort festlegen" : {
+
+    },
+    "Provider" : {
+
+    },
+    "Rücksprung-URL beim Provider: %@" : {
+
+    },
+    "S%@E%@ · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "S%1$@E%2$@ · %3$@"
+          }
+        }
+      }
+    },
+    "S1E1 · Name der Folge" : {
+
+    },
+    "Server" : {
+
+    },
+    "So erscheint dieses Gerät unter Konto → Geräte." : {
+
+    },
+    "SSL/TLS" : {
+
+    },
+    "STARTTLS" : {
+
+    },
+    "Suche eine Serie und markiere die erste Folge als gesehen." : {
+
+    },
+    "Titel" : {
+
+    },
+    "Titel der Serie" : {
+
+    },
+    "Titel einer Serie" : {
+
+    },
+    "TMDB-Token" : {
+
+    },
+    "Über alle Jahre." : {
+
+    },
+    "Updates" : {
+
+    },
+    "Verlauf" : {
+
+    },
+    "Webhook-Adresse (KNot, optional)" : {
+
+    },
+    "Webhook-Schlüssel (KNot)" : {
+
+    },
+    "Weiter" : {
+
+    },
+    "Wer Benachrichtigungen per Webhook bekommt, erhält sie danach per E-Mail, sofern möglich." : {
+
+    },
+    "Wer Serien beobachtet, kann sich unter „Konto → Benachrichtigungen“ über neue Folgen informieren lassen – per E-Mail oder über einen Webhook. Geprüft wird einmal am Tag; dabei gleicht WatchSwifty auch die Serien mit TMDB ab." : {
+
+    },
+    "Zeitraum" : {
+
+    },
+    "Zu finden in deinem TMDB-Konto unter Einstellungen → API. Der Server prüft ihn bei TMDB." : {
+
+    },
+    "Zuletzt genutzt" : {
+
+    },
+    "Zum Entfernen brauchst du dein aktuelles Passwort." : {
+
+    },
+    "Zuordnungen" : {
+
+    }
   },
   "version" : "1.0"
 }
