@@ -83,15 +83,13 @@ import WatchSwiftyClient
 
     @Test func otherMutationsUseTheirRoutes() async {
         let transport = FakeTransport()
-        for (method, path): (HTTPRequest.Method, String) in [(.delete, "/api/v1/tv/1/episodes/1/1/watch"),
-                               (.post, "/api/v1/tv/1/episodes/1/1/watch-up-to"), (.post, "/api/v1/tv/1/seasons/1/watch"),
+        for (method, path): (HTTPRequest.Method, String) in [(.post, "/api/v1/tv/1/episodes/1/1/watch-up-to"), (.post, "/api/v1/tv/1/seasons/1/watch"),
                                (.put, "/api/v1/tv/1/hidden"), (.put, "/api/v1/tv/1/follow"), (.put, "/api/v1/tv/1/comment"),
                                (.put, "/api/v1/tv/1/seasons/1/comment")] {
             transport.on(method, path, json: 200, Fixtures.series(watched: true))
         }
         let model = await Fixtures.readyModel(transport)
         let store = SeriesStore(tmdbID: 1, api: model.api, app: model)
-        await store.unmarkEpisode(season: 1, number: 1)
         await store.markUpTo(season: 1, number: 1)
         await store.markSeason(1)
         await store.setHidden(true)
@@ -99,7 +97,7 @@ import WatchSwiftyClient
         await store.setComment("Gut")
         await store.setSeasonComment(season: 1, text: "Stark")
         #expect(store.actionError == nil)
-        #expect(model.changeVersion == 7)
+        #expect(model.changeVersion == 6)
         #expect(Fixtures.jsonObject(transport.requests.last?.body)["comment"] as? String == "Stark")
     }
 
@@ -115,6 +113,68 @@ import WatchSwiftyClient
         await store.markAll(service: .none)
         #expect(Fixtures.jsonObject(transport.requests.last?.body) as NSDictionary == ["service": "unknown"])
         #expect(store.actionError == nil)
+    }
+
+    @Test func seasonAndSeriesRewatchSendTheFlag() async {
+        let transport = FakeTransport()
+        for path in ["/api/v1/tv/1/seasons/1/watch", "/api/v1/tv/1/watch-all"] {
+            transport.on(.post, path, json: 200, Fixtures.series(watched: true))
+        }
+        let model = await Fixtures.readyModel(transport)
+        let store = SeriesStore(tmdbID: 1, api: model.api, app: model)
+        await store.markSeason(1, service: .service(.netflix), rewatch: true)
+        #expect(Fixtures.jsonObject(transport.requests.last?.body) as NSDictionary == ["service": "netflix", "rewatch": true])
+        await store.markAll(service: .none, rewatch: true)
+        #expect(Fixtures.jsonObject(transport.requests.last?.body) as NSDictionary == ["service": "unknown", "rewatch": true])
+        #expect(store.actionError == nil)
+    }
+
+    /// Like the web: „erneut gesehen“ once every aired episode is watched; episodes not aired yet do not count, and a
+    /// season without aired episodes is never fully watched. Specials (season 0) do not count for the series.
+    @Test func fullyWatchedCountsAiredEpisodesOnly() throws {
+        func episode(_ number: Int, aired: Bool, watched: Bool) -> String {
+            let watches = watched ? #"[{"id":"0F2B4D63-8E57-4E0A-9C5B-3B1E2D4F5A6\#(number)","origin":"manual"}]"# : "[]"
+            return #"{"season":1,"number":\#(number),"name":"E\#(number)","aired":\#(aired),"watches":\#(watches)}"#
+        }
+        func season(_ number: Int, _ episodes: [String]) -> String {
+            #"{"number":\#(number),"title":"S\#(number)","watchedCount":0,"episodes":[\#(episodes.joined(separator: ","))]}"#
+        }
+        func detail(_ seasons: [String]) throws -> Components.Schemas.SeriesDetail {
+            let json = #"{"tmdbId":1,"name":"X","links":{"tmdb":"","imdb":"","rottenTomatoes":""},"hidden":false,"followed":false,"seasons":[\#(seasons.joined(separator: ","))]}"#
+            return try JSONDecoder().decode(Components.Schemas.SeriesDetail.self, from: Data(json.utf8))
+        }
+        let done = try detail([season(0, [episode(1, aired: true, watched: false)]),
+                               season(1, [episode(1, aired: true, watched: true), episode(2, aired: false, watched: false)])])
+        #expect(SeriesStore.fullyWatched(done))
+        #expect(!SeriesStore.fullyWatched(done.seasons[0]))
+        #expect(SeriesStore.fullyWatched(done.seasons[1]))
+        let open = try detail([season(1, [episode(1, aired: true, watched: true), episode(2, aired: true, watched: false)])])
+        #expect(!SeriesStore.fullyWatched(open))
+        #expect(!SeriesStore.fullyWatched(open.seasons[0]))
+        let upcoming = try detail([season(1, [episode(1, aired: false, watched: false)])])
+        #expect(!SeriesStore.fullyWatched(upcoming))
+        #expect(!SeriesStore.fullyWatched(upcoming.seasons[0]))
+    }
+
+    /// One viewing goes, not all of the episode's; the series is read again (the delete answers without a body).
+    @Test func deleteWatchRemovesOneViewingAndReloads() async {
+        let transport = FakeTransport()
+        let watchID = "0F2B4D63-8E57-4E0A-9C5B-3B1E2D4F5A6B"
+        let deleted = Counter()
+        transport.on(.get, "/api/v1/tv/1") { _, _ in FakeTransport.json(200, Fixtures.series(watched: deleted.value == 0)) }
+        transport.on(.delete, "/api/v1/watches/\(watchID)") { _, _ in
+            deleted.increment()
+            return FakeTransport.empty(204)
+        }
+        let model = await Fixtures.readyModel(transport)
+        let store = SeriesStore(tmdbID: 1, api: model.api, app: model)
+        await store.load()
+        await store.deleteWatch(id: watchID)
+        #expect(deleted.value == 1)
+        #expect(store.actionError == nil)
+        #expect(store.detail.value?.seasons.first?.episodes.first?.watches.isEmpty == true)
+        #expect(model.changeVersion == 1)
+        #expect(!transport.requests.contains { $0.path == "/api/v1/tv/1/episodes/1/1/watch" })
     }
 
     @Test func bulkServicePresetIsTheLastUsedService() throws {

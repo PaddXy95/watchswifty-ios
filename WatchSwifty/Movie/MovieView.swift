@@ -21,7 +21,7 @@ struct MovieView: View {
 private struct MovieContent: View {
     @Bindable var store: MovieStore
     @State private var showWatchSheet = false
-    @State private var confirmUnmark = false
+    @State private var deleting: Components.Schemas.WatchSummary?
     @State private var feedback = 0
 
     var body: some View {
@@ -51,8 +51,9 @@ private struct MovieContent: View {
             Text(store.actionError?.message ?? "")
         }
         .sensoryFeedback(.success, trigger: feedback)
-        .confirmationDialog("Alle Sichtungen dieses Films löschen?", isPresented: $confirmUnmark, titleVisibility: .visible) {
-            Button("Löschen", role: .destructive) { Task { await store.unmark() } }
+        .confirmationDialog("Diese Sichtung löschen?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+                            titleVisibility: .visible, presenting: deleting) { watch in
+            Button("Löschen", role: .destructive) { Task { await store.deleteWatch(id: watch.id) } }
         }
     }
 
@@ -73,18 +74,10 @@ private struct MovieContent: View {
             }
             Section("Gesehen") {
                 ForEach(detail.watches, id: \.id) { watch in
-                    VStack(alignment: .leading) {
-                        Text(watch.day.map { Day.display($0) } ?? "Ohne Datum")
-                        Text([watch.service?.displayName, watch.origin == .import ? "Import" : nil]
-                            .compactMap { $0 }.joined(separator: " · "))
-                            .font(.caption).foregroundStyle(.secondary)
-                    }
+                    WatchRow(watch: watch) { deleting = watch }
                 }
                 Button(detail.watches.isEmpty ? "Gesehen …" : "Erneut gesehen …", systemImage: "checkmark.circle") {
                     showWatchSheet = true
-                }
-                if !detail.watches.isEmpty {
-                    Button("Nicht gesehen", systemImage: "xmark.circle", role: .destructive) { confirmUnmark = true }
                 }
             }
         }

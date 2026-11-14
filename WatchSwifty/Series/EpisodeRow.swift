@@ -29,7 +29,8 @@ struct EpisodeRow: View {
     }
 }
 
-/// One episode: synopsis, every watch, and marking it (again) with a date, service and „Erneut gesehen“.
+/// One episode: synopsis, every watch (each deletable on its own), and marking it (again) with a date, service and
+/// „Erneut gesehen“.
 struct EpisodeSheet: View {
     let store: SeriesStore
     let target: EpisodeTarget
@@ -38,7 +39,7 @@ struct EpisodeSheet: View {
     @State private var date = Date()
     @State private var service: ServiceChoice = .lastUsed
     @State private var rewatch = false
-    @State private var confirmUnmark = false
+    @State private var deleting: Components.Schemas.WatchSummary?
 
     private var episode: Components.Schemas.Episode? {
         store.detail.value?.seasons.first { $0.number == target.season }?.episodes.first { $0.number == target.number }
@@ -63,10 +64,7 @@ struct EpisodeSheet: View {
                     if !episode.watches.isEmpty {
                         Section("Gesehen") {
                             ForEach(episode.watches, id: \.id) { watch in
-                                LabeledContent(watch.day.map { Day.display($0) } ?? "Ohne Datum") {
-                                    Text([watch.service?.displayName, watch.origin == .import ? "Import" : nil]
-                                        .compactMap { $0 }.joined(separator: " · "))
-                                }
+                                WatchRow(watch: watch) { deleting = watch }
                             }
                         }
                     }
@@ -85,11 +83,6 @@ struct EpisodeSheet: View {
                             }
                             .disabled(store.busy)
                         }
-                        if !episode.watches.isEmpty {
-                            Section {
-                                Button("Nicht gesehen", systemImage: "xmark.circle", role: .destructive) { confirmUnmark = true }
-                            }
-                        }
                     }
                 }
             }
@@ -103,11 +96,13 @@ struct EpisodeSheet: View {
             } message: {
                 Text(store.actionError?.message ?? "")
             }
-            .confirmationDialog("Als nicht gesehen markieren?", isPresented: $confirmUnmark, titleVisibility: .visible) {
-                Button("Nicht gesehen", role: .destructive) {
+            .confirmationDialog("Diese Sichtung löschen?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }),
+                                titleVisibility: .visible, presenting: deleting) { watch in
+                Button("Löschen", role: .destructive) {
                     Task {
-                        await store.unmarkEpisode(season: target.season, number: target.number)
-                        if store.actionError == nil { dismiss() }
+                        await store.deleteWatch(id: watch.id)
+                        // The sheet stays open on the episode; the toggle follows whether a viewing is left.
+                        rewatch = !(episode?.watches.isEmpty ?? true)
                     }
                 }
             }
