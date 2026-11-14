@@ -5,15 +5,13 @@ Film-Tracker. Die App kann dasselbe wie die Weboberfläche und spricht nur mit d
 `/api/v1`). Angemeldet wird im Browser-Fenster – die App sieht dein Passwort nie.
 
 ## Voraussetzungen
-- Xcode 26 oder neuer, iOS 26 oder neuer (nur iPhone)
-- [XcodeGen](https://github.com/yonaskolb/XcodeGen): `brew install xcodegen`
+- Xcode 27.2 oder neuer (das Projekt nutzt das JSON-Projektformat `project.xcproj`), iOS 26 oder neuer (iPhone; läuft auch auf dem iPad)
 - Die Client-Bibliothek `WatchSwiftyClient` kommt aus dem Server-Repo `watchswifty`, gepinnt auf ein Release-Tag
   (`Packages/WatchSwiftyCore/Package.swift`). Für noch nicht veröffentlichte Server-Änderungen dort kurzzeitig auf
   `.package(path: "../../../watchswifty")` umstellen (Server-Repo neben diesem Repo) – so nicht committen.
 
 ## Bauen
 ```bash
-xcodegen generate
 open WatchSwifty.xcodeproj
 ```
 Beim ersten Öffnen fragt Xcode, ob das Plugin `OpenAPIGenerator` ausgeführt werden darf („Trust & Enable“).

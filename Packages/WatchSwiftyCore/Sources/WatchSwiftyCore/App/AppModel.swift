@@ -20,6 +20,8 @@ public final class AppModel {
     public private(set) var server: ServerAddress?
     public private(set) var me: Components.Schemas.Me?
     public private(set) var token: StoredToken?
+    /// Version the server reported at start or when connecting; `nil` until it answered.
+    public private(set) var serverVersion: String?
     public private(set) var changeVersion = 0
     /// One-off hint for the login screen, e.g. after an expired token.
     public var notice: String?
@@ -63,11 +65,13 @@ public final class AppModel {
 
         startupChecks = Task { [weak self] in
             guard let self else { return }
-            if let version = try? await self.api.getVersion().ok.body.json.version,
-               case .tooOld(let serverVersion, let minimum) = ServerVersion.check(serverVersion: version,
-                                                                                  minimum: self.environment.minimumServerVersion) {
-                self.phase = .serverTooOld(server: serverVersion, minimum: minimum)
-                return
+            if let version = try? await self.api.getVersion().ok.body.json.version {
+                self.serverVersion = version
+                if case .tooOld(let serverVersion, let minimum) = ServerVersion.check(serverVersion: version,
+                                                                                     minimum: self.environment.minimumServerVersion) {
+                    self.phase = .serverTooOld(server: serverVersion, minimum: minimum)
+                    return
+                }
             }
             if self.phase == .ready { await self.refreshMe() }
         }
@@ -92,6 +96,7 @@ public final class AppModel {
         }
         environment.settings.set(server.baseURL.absoluteString, forKey: Self.serverKey)
         use(server: server)
+        serverVersion = version
         phase = .needsLogin
     }
 
@@ -102,6 +107,7 @@ public final class AppModel {
         environment.snapshot.clear()
         environment.settings.removeObject(forKey: Self.serverKey)
         server = nil
+        serverVersion = nil
         phase = .needsServer
     }
 

@@ -79,8 +79,21 @@ public final class SeriesStore {
                                                 body: .json(choice.input)).ok.body.json }
     }
 
-    public func unmarkEpisode(season: Int, number: Int) async {
-        await mutate { try await $0.unmarkEpisode(path: .init(tmdbID: self.tmdbID, season: season, number: number)).ok.body.json }
+    /// „Löschen“ on one viewing in the episode details (as in the web, which no longer deletes all of an episode's
+    /// viewings at once). The answer has no body, so the series is reloaded afterwards.
+    public func deleteWatch(id: String) async {
+        guard !busy else { return }
+        busy = true
+        defer { busy = false }
+        let api = api
+        guard let result = await runCatching({ _ = try await api.deleteWatch(path: .init(id: id)).noContent }) else { return }
+        switch result {
+        case .success:
+            app.didChange()
+            await load()
+        case .failure(let error):
+            actionError = error
+        }
     }
 
     // The undated marks below send an empty `WatchInput` (`{}`) although the body is optional: behind a reverse proxy
@@ -92,12 +105,41 @@ public final class SeriesStore {
         }
     }
 
-    public func markSeason(_ season: Int) async {
-        await mutate { try await $0.markSeason(path: .init(tmdbID: self.tmdbID, season: season), body: .json(.init())).ok.body.json }
+    /// „Ganze Staffel gesehen“: every aired episode of the season not watched yet, undated, with `service`. With
+    /// `rewatch` („Ganze Staffel erneut gesehen“) the server adds a new round instead: one more undated watch for every
+    /// aired episode behind the highest watch count (all of them when they are level).
+    public func markSeason(_ season: Int, service: ServiceChoice = .lastUsed, rewatch: Bool = false) async {
+        let body = WatchChoice(service: service, rewatch: rewatch).input
+        await mutate { try await $0.markSeason(path: .init(tmdbID: self.tmdbID, season: season), body: .json(body)).ok.body.json }
     }
 
-    public func markAll() async {
-        await mutate { try await $0.markSeries(path: .init(tmdbID: self.tmdbID), body: .json(.init())).ok.body.json }
+    /// „Gesamte Serie gesehen“: every aired regular episode not watched yet, undated, with `service`; with `rewatch`
+    /// („Gesamte Serie erneut gesehen“) a new round, as for a season.
+    public func markAll(service: ServiceChoice = .lastUsed, rewatch: Bool = false) async {
+        let body = WatchChoice(service: service, rewatch: rewatch).input
+        await mutate { try await $0.markSeries(path: .init(tmdbID: self.tmdbID), body: .json(body)).ok.body.json }
+    }
+
+    /// Every aired episode of the season is watched (and there is one): the button reads „Ganze Staffel erneut
+    /// gesehen“ and marks a new round, as in the web.
+    public nonisolated static func fullyWatched(_ season: Components.Schemas.Season) -> Bool {
+        allWatched(season.episodes)
+    }
+
+    /// Every aired regular episode (season ≥ 1) is watched: „Gesamte Serie erneut gesehen“.
+    public nonisolated static func fullyWatched(_ detail: Components.Schemas.SeriesDetail) -> Bool {
+        allWatched(detail.seasons.filter { $0.number > 0 }.flatMap(\.episodes))
+    }
+
+    private nonisolated static func allWatched(_ episodes: [Components.Schemas.Episode]) -> Bool {
+        let aired = episodes.filter(\.aired)
+        return !aired.isEmpty && aired.allSatisfy { !$0.watches.isEmpty }
+    }
+
+    /// Preselected service for a whole season or series: the one last used for the series, else „Ohne Dienst“ (as in
+    /// the web).
+    public nonisolated static func bulkServicePreset(_ detail: Components.Schemas.SeriesDetail) -> ServiceChoice {
+        detail.lastService.map { .service($0) } ?? .none
     }
 
     public func setHidden(_ hidden: Bool) async {

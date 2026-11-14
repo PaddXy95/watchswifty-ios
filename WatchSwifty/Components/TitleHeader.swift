@@ -1,11 +1,14 @@
 import SwiftUI
 import WatchSwiftyClient
+import WatchSwiftyCore
 
-/// Poster, title, year/status and the overview of a series or movie.
+/// Poster, title, year/status, genres and the overview of a series or movie.
 struct TitleHeader: View {
     let posterPath: String?
     let title: String
     let subtitle: String
+    /// Missing on servers before 0.5.0 and empty until the server loaded them from TMDB.
+    let genres: [GenreValue]?
     let overview: String?
     @State private var expanded = false
     @State private var showPoster = false
@@ -19,6 +22,8 @@ struct TitleHeader: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text(title).font(.title2.bold())
                     if !subtitle.isEmpty { Text(subtitle).foregroundStyle(.secondary) }
+                    let genreLine = GenreValue.line(genres)
+                    if !genreLine.isEmpty { Text(genreLine).font(.subheadline).foregroundStyle(.secondary) }
                 }
             }
             if let overview, !overview.isEmpty {

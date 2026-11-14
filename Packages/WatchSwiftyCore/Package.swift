@@ -11,7 +11,7 @@ let package = Package(
         // During development: the server checkout next to this repo (see README). Pinned to a release tag later.
         // Release tag of the server repo. For unreleased server changes switch to
         // `.package(path: "../../../watchswifty")` locally – never commit that.
-        .package(url: "https://github.com/PaddXy95/watchswifty.git", from: "0.4.0"),
+        .package(url: "https://github.com/PaddXy95/watchswifty.git", from: "0.6.0"),
         .package(url: "https://github.com/apple/swift-openapi-runtime", from: "1.13.4"),
         .package(url: "https://github.com/apple/swift-openapi-urlsession", from: "1.0.0"),
         .package(url: "https://github.com/apple/swift-http-types", from: "1.0.0"),

@@ -30,7 +30,12 @@ public final class LibraryStore {
 
     public private(set) var filter = Filter.all
     public private(set) var sort = Sort.recent
+    /// Only titles with this genre (`nil` = all genres).
+    public private(set) var genre: GenreValue?
     public private(set) var entries = Loadable<[Components.Schemas.LibraryEntry]>()
+    /// Genres for the filter: those of the titles seen in loads without a genre (the API has no list of its own; the
+    /// web offers the genres of the whole library). Empty on servers without genres, so the filter stays hidden.
+    public private(set) var availableGenres: [GenreValue] = []
 
     @ObservationIgnored private let api: any APIProtocol
     @ObservationIgnored private let app: AppModel
@@ -46,13 +51,25 @@ public final class LibraryStore {
         await load()
     }
 
+    public func set(genre: GenreValue?) async {
+        self.genre = genre
+        await load()
+    }
+
     public func load() async {
         entries.begin()
         let version = app.changeVersion
-        let query = Operations.getLibrary.Input.Query(filter: .init(rawValue: filter.rawValue), sort: .init(rawValue: sort.rawValue))
+        let (filter, genre) = (filter, genre)
+        let query = Operations.getLibrary.Input.Query(filter: .init(rawValue: filter.rawValue), sort: .init(rawValue: sort.rawValue),
+                                                      genre: genre)
         let api = api
         guard let result = await runCatching({ try await api.getLibrary(query: query).ok.body.json }) else { return entries.cancel() }
         entries.finish(result, at: version)
+        if genre == nil, case .success(let titles) = result {
+            let found = titles.flatMap { $0.genres ?? [] }
+            // „Alle“ covers every visible title, so it replaces the list; the other filters only add (hidden titles).
+            availableGenres = GenreValue.sortedByName(filter == .all ? found : availableGenres + found)
+        }
     }
 
     public func reloadIfStale() async {

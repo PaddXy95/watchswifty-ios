@@ -36,8 +36,21 @@ public final class MovieStore {
         await mutate { try await $0.markMovie(path: .init(tmdbID: self.tmdbID), body: .json(choice.input)).ok.body.json }
     }
 
-    public func unmark() async {
-        await mutate { try await $0.unmarkMovie(path: .init(tmdbID: self.tmdbID)).ok.body.json }
+    /// „Löschen“ on one viewing (as in the web, which no longer deletes all of a movie's viewings at once). The answer
+    /// has no body, so the movie is reloaded afterwards.
+    public func deleteWatch(id: String) async {
+        guard !busy else { return }
+        busy = true
+        defer { busy = false }
+        let api = api
+        guard let result = await runCatching({ _ = try await api.deleteWatch(path: .init(id: id)).noContent }) else { return }
+        switch result {
+        case .success:
+            app.didChange()
+            await load()
+        case .failure(let error):
+            actionError = error
+        }
     }
 
     public func setRating(_ rating: Int?) async {

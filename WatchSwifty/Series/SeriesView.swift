@@ -24,7 +24,7 @@ private struct SeriesContent: View {
     @Environment(\.scenePhase) private var scenePhase
     @State private var selected: EpisodeTarget?
     @State private var expanded: Set<Int>?
-    @State private var confirmAll = false
+    @State private var bulk: BulkTarget?
     @State private var feedback = 0
 
     var body: some View {
@@ -50,8 +50,16 @@ private struct SeriesContent: View {
         .sheet(item: $selected) { target in
             EpisodeSheet(store: store, target: target) { feedback += 1 }
         }
-        .confirmationDialog("Alle Folgen als gesehen markieren?", isPresented: $confirmAll, titleVisibility: .visible) {
-            Button("Alles gesehen") { Task { await store.markAll(); feedback += 1 } }
+        .sheet(item: $bulk) { target in
+            BulkWatchSheet(target: target) { service in
+                Task {
+                    switch target.scope {
+                    case .season(let number): await store.markSeason(number, service: service, rewatch: target.rewatch)
+                    case .series: await store.markAll(service: service, rewatch: target.rewatch)
+                    }
+                    feedback += 1
+                }
+            }
         }
         .alert("Das hat nicht geklappt", isPresented: errorShown) {
             Button("OK", role: .cancel) {}
@@ -101,7 +109,7 @@ private struct SeriesContent: View {
             Section {
                 TitleHeader(posterPath: detail.posterPath, title: detail.name,
                             subtitle: [detail.year.map(String.init), detail.status].compactMap { $0 }.joined(separator: " · "),
-                            overview: detail.overview)
+                            genres: detail.genres, overview: detail.overview)
                 RatingControl(rating: detail.rating) { rating in Task { await store.setRating(rating) } }
                 LinksRow(links: detail.links)
             }
@@ -141,8 +149,9 @@ private struct SeriesContent: View {
                     }
                     .font(.callout)
                 } header: {
-                    SeasonHeader(season: season, isExpanded: isExpanded(season.number)) {
-                        Task { await store.markSeason(season.number); feedback += 1 }
+                    SeasonHeader(season: season, rewatch: SeriesStore.fullyWatched(season), isExpanded: isExpanded(season.number)) {
+                        bulk = BulkTarget(scope: .season(season.number), seasonTitle: season.title,
+                                          preset: SeriesStore.bulkServicePreset(detail), rewatch: SeriesStore.fullyWatched(season))
                     }
                 }
             }
@@ -162,7 +171,10 @@ private struct SeriesContent: View {
                     Label("Ausblenden", systemImage: "eye.slash")
                 }
                 Divider()
-                Button("Alles gesehen", systemImage: "checkmark.circle.fill") { confirmAll = true }
+                let rewatch = SeriesStore.fullyWatched(detail)
+                Button(rewatch ? "Gesamte Serie erneut gesehen" : "Gesamte Serie gesehen", systemImage: "checkmark.circle.fill") {
+                    bulk = BulkTarget(scope: .series, seasonTitle: nil, preset: SeriesStore.bulkServicePreset(detail), rewatch: rewatch)
+                }
             } label: {
                 Image(systemName: "ellipsis.circle").accessibilityLabel("Aktionen")
             }
@@ -170,9 +182,11 @@ private struct SeriesContent: View {
     }
 }
 
-/// Tappable season header: chevron, title, progress, „Staffel gesehen“.
+/// Tappable season header: chevron, title, progress, „Ganze Staffel (erneut) gesehen“.
 private struct SeasonHeader: View {
     let season: Components.Schemas.Season
+    /// Every aired episode is watched: the action marks a new round.
+    let rewatch: Bool
     @Binding var isExpanded: Bool
     let onMarkSeason: () -> Void
 
@@ -195,11 +209,79 @@ private struct SeasonHeader: View {
             .accessibilityLabel("\(season.title), \(season.watchedCount) von \(season.episodes.count) gesehen")
             .accessibilityHint(isExpanded ? "Zuklappen" : "Aufklappen")
             Menu {
-                Button("Staffel gesehen", systemImage: "checkmark.circle", action: onMarkSeason)
+                Button(rewatch ? "Ganze Staffel erneut gesehen" : "Ganze Staffel gesehen", systemImage: "checkmark.circle",
+                       action: onMarkSeason)
             } label: {
                 Image(systemName: "ellipsis.circle").accessibilityLabel("Staffel-Aktionen")
             }
         }
+    }
+}
+
+/// „Ganze Staffel gesehen“ / „Gesamte Serie gesehen“ with the service preselected as in the web; `rewatch` once
+/// every aired episode is watched („… erneut gesehen“, a new round).
+struct BulkTarget: Identifiable {
+    enum Scope: Hashable { case season(Int), series }
+    let scope: Scope
+    let seasonTitle: String?
+    let preset: ServiceChoice
+    let rewatch: Bool
+    var id: Scope { scope }
+}
+
+/// Asks for the service before a whole season or series is marked (without a date, as in the web).
+private struct BulkWatchSheet: View {
+    let target: BulkTarget
+    let onSave: (ServiceChoice) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var service: ServiceChoice
+
+    init(target: BulkTarget, onSave: @escaping (ServiceChoice) -> Void) {
+        self.target = target
+        self.onSave = onSave
+        _service = State(initialValue: target.preset)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    ServicePicker(selection: $service, allowsLastUsed: false)
+                } footer: {
+                    Text(footer)
+                }
+            }
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Abbrechen") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Gesehen") {
+                        onSave(service)
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .presentationDetents([.medium])
+    }
+
+    private var title: String {
+        switch (target.seasonTitle == nil, target.rewatch) {
+        case (true, false): "Gesamte Serie gesehen"
+        case (true, true): "Gesamte Serie erneut gesehen"
+        case (false, false): "Ganze Staffel gesehen"
+        case (false, true): "Ganze Staffel erneut gesehen"
+        }
+    }
+
+    private var footer: String {
+        if target.rewatch {
+            return target.seasonTitle.map { "Jede ausgestrahlte Folge von „\($0)“ bekommt eine weitere Sichtung ohne Datum. Schon einzeln erneut gesehene Folgen zählen nicht doppelt." }
+                ?? "Jede ausgestrahlte Folge bekommt eine weitere Sichtung ohne Datum. Schon einzeln erneut gesehene Folgen zählen nicht doppelt."
+        }
+        return target.seasonTitle.map { "Alle ausgestrahlten Folgen von „\($0)“, die noch nicht gesehen sind, werden ohne Datum abgehakt." }
+            ?? "Alle ausgestrahlten Folgen, die noch nicht gesehen sind, werden ohne Datum abgehakt."
     }
 }
 

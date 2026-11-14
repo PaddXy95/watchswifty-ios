@@ -10,6 +10,9 @@ public final class AccountStore {
     public private(set) var followed = Loadable<[Components.Schemas.FollowedSeries]>()
     /// Konto → Benachrichtigungen; stays empty on a server without notifications.
     public private(set) var notifications = Loadable<Components.Schemas.NotificationPrefs>()
+    /// Konto → TMDB-Token → „Alle Daten von TMDB neu laden“: progress of the last run since the server started; `nil`
+    /// until loaded and on servers before 0.5.1, which have no reload.
+    public private(set) var libraryRefresh: Components.Schemas.LibraryRefresh?
     public private(set) var busy = false
     public var actionError: UserFacingError?
     /// Short confirmation after a successful change.
@@ -17,18 +20,28 @@ public final class AccountStore {
 
     @ObservationIgnored private let api: any APIProtocol
     @ObservationIgnored private let app: AppModel
+    @ObservationIgnored private let pollInterval: Duration
 
-    public init(api: any APIProtocol, app: AppModel) {
+    public init(api: any APIProtocol, app: AppModel, pollInterval: Duration = .seconds(2)) {
         self.api = api
         self.app = app
+        self.pollInterval = pollInterval
     }
 
     public var me: Components.Schemas.Me? { app.me }
     /// Only accounts with a password, and only while the server allows password login (as in the web).
     public var canChangePassword: Bool { me.map { $0.hasPassword && $0.passwordLogin } ?? false }
     public var currentDeviceID: String? { app.token?.deviceID }
-    /// Setting or removing the KNot key asks for the current password on accounts that have one (SSO-only ones have none).
-    public var webhookKeyNeedsPassword: Bool { me?.hasPassword ?? true }
+    /// Servers before 0.5.0 ask for the current password when the KNot key is set or removed, on accounts that have
+    /// one (SSO-only ones have none); newer servers need none and ignore it.
+    public var webhookKeyNeedsPassword: Bool {
+        guard me?.hasPassword ?? true else { return false }
+        guard let reported = app.serverVersion else { return true }   // not answered yet: ask, an old server needs it
+        guard let version = ServerVersion(reported) else { return false }   // e.g. `dev`: a current build
+        return version < Self.webhookKeyWithoutPassword
+    }
+
+    private static let webhookKeyWithoutPassword = ServerVersion("0.5.0")!
     /// Konto page in the browser (manual tokens, SSO linking).
     public var webAccountURL: URL? { app.server?.baseURL.appending(path: "account") }
 
@@ -45,10 +58,38 @@ public final class AccountStore {
         async let devicesResult = runCatching { try await api.listDevices().ok.body.json }
         async let followedResult = runCatching { try await api.getFollowed().ok.body.json }
         async let notificationsResult = runCatching { try await api.getNotificationPrefs().ok.body.json }
+        async let refresh: Void = loadLibraryRefresh()
         if let result = await devicesResult { devices.finish(result, at: version) } else { devices.cancel() }
         if let result = await followedResult { followed.finish(result, at: version) } else { followed.cancel() }
         if let result = await notificationsResult { notifications.finish(result, at: version) } else { notifications.cancel() }
+        await refresh
         await app.refreshMe()
+    }
+
+    /// „Alle Daten von TMDB neu laden“: the server reloads every title of the account in the background with the own
+    /// token; a run that is already going is returned instead of a new one. Follow it with `pollLibraryRefresh()`.
+    public func startLibraryRefresh() async {
+        guard let state = await run({ try await $0.startLibraryRefresh().accepted.body.json }) else { return }
+        libraryRefresh = state
+    }
+
+    /// Asks every `pollInterval` for the progress while a run is going; stops when it is done or when the task is
+    /// cancelled (screen closed). A finished run marks the data as changed, so open screens reload the new titles.
+    public func pollLibraryRefresh() async {
+        while libraryRefresh?.running == true, !Task.isCancelled {
+            try? await Task.sleep(for: pollInterval)
+            guard !Task.isCancelled else { return }
+            await loadLibraryRefresh()
+        }
+    }
+
+    /// A failure (also a server without the reload) keeps what is shown; the section hides while nothing was read.
+    private func loadLibraryRefresh() async {
+        let api = api
+        guard case .success(let state)? = await runCatching({ try await api.getLibraryRefresh().ok.body.json }) else { return }
+        let finished = libraryRefresh?.running == true && !state.running
+        libraryRefresh = state
+        if finished { app.didChange() }
     }
 
     public func changePassword(current: String, new: String) async -> Bool {

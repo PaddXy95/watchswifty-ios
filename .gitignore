@@ -1,4 +1,4 @@
-*.xcodeproj
+xcuserdata/
 .build/
 .swiftpm/
 DerivedData/

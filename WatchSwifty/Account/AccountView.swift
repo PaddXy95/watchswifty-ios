@@ -43,10 +43,15 @@ private struct AccountContent: View {
                     if me.tmdbToken.state != .none {
                         Button("Token entfernen", role: .destructive) { Task { await store.deleteTMDBToken() } }
                     }
+                    if me.tmdbToken.state == .stored, let refresh = store.libraryRefresh {
+                        LibraryRefreshRow(state: refresh) { Task { await store.startLibraryRefresh() } }
+                    }
                 } header: {
                     Text("TMDB-Token")
                 } footer: {
-                    Text("Dein eigener TMDB-Lesezugriffstoken für Suche und Titeldaten.")
+                    Text(store.libraryRefresh == nil || me.tmdbToken.state != .stored
+                         ? "Dein eigener TMDB-Lesezugriffstoken für Suche und Titeldaten."
+                         : "Dein eigener TMDB-Lesezugriffstoken für Suche und Titeldaten. „Alle Daten von TMDB neu laden“ lädt alle deine Serien und Filme mit diesem Token neu, etwa nach einem Update mit neuen Daten.")
                 }
             }
             if let prefs = store.notifications.value {
@@ -69,6 +74,7 @@ private struct AccountContent: View {
         }
         .disabled(store.busy)
         .refreshable { await store.load() }
+        .task(id: store.libraryRefresh?.running == true) { await store.pollLibraryRefresh() }
         .navigationDestination(for: AccountDestination.self) { destination in
             switch destination {
             case .devices: DevicesView(store: store)
@@ -100,6 +106,35 @@ private struct AccountContent: View {
         case .stored: "Hinterlegt \(state.suffix ?? "")"
         case .unreadable: "Nicht lesbar – bitte neu eintragen"
         }
+    }
+}
+
+/// „Alle Daten von TMDB neu laden“: the progress while a run is going, otherwise the last result and the button (as in
+/// the web).
+private struct LibraryRefreshRow: View {
+    let state: Components.Schemas.LibraryRefresh
+    let onStart: () -> Void
+
+    var body: some View {
+        if state.running {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("Lädt neu … \(state.done) von \(state.total)")
+                ProgressView(value: Double(state.done), total: Double(max(state.total, 1)))
+            }
+            .accessibilityElement(children: .combine)
+        } else {
+            if let error = state.error {
+                Text(error).foregroundStyle(.red)
+            } else if state.finishedAt != nil {
+                Text(result).foregroundStyle(.secondary)
+            }
+            Button("Alle Daten von TMDB neu laden", action: onStart)
+        }
+    }
+
+    private var result: String {
+        let refreshed = "Fertig: \(state.done - state.failed) Titel neu geladen"
+        return state.failed > 0 ? "\(refreshed), \(state.failed) fehlgeschlagen" : refreshed
     }
 }
 

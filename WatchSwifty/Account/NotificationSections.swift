@@ -80,7 +80,7 @@ struct NotificationSections: View {
     }
 }
 
-/// Stores the KNot key; accounts with a password confirm with it (the key can redirect „Neues Gerät verbunden“).
+/// Stores the KNot key; on servers before 0.5.0 accounts with a password confirm with it.
 struct WebhookKeySheet: View {
     let store: AccountStore
     @Environment(\.dismiss) private var dismiss

@@ -102,7 +102,7 @@ extension Fixtures {
     }
 
     /// An AppModel that is signed in against `transport` (version + me answered).
-    @MainActor static func readyModel(_ transport: FakeTransport) async -> AppModel {
+    @MainActor static func readyModel(_ transport: FakeTransport, me: String = Fixtures.me) async -> AppModel {
         transport.on(.get, "/api/v1/version", json: 200, #"{"version":"0.4.0"}"#)
         transport.on(.get, "/api/v1/me", json: 200, me)
         let model = AppModel(environment: environment(transport: transport, token: token))

@@ -91,7 +91,24 @@ private struct NetflixImportContent: View {
             ForEach(reviews, id: \.id) { review in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(review.netflixName).font(.headline)
-                    Text(review.rowCount == 1 ? "1 Zeile" : "\(review.rowCount) Zeilen").font(.caption).foregroundStyle(.secondary)
+                    Text([review.rowCount == 1 ? "1 Zeile" : "\(review.rowCount) Zeilen",
+                          Day.watchedRange(first: review.firstDay, last: review.lastDay)].compactMap { $0 }.joined(separator: " · "))
+                        .font(.caption).foregroundStyle(.secondary)
+                    if let rows = review.rows, !rows.isEmpty {
+                        DisclosureGroup("Zeilen anzeigen") {
+                            VStack(alignment: .leading, spacing: 2) {
+                                ForEach(Array(rows.enumerated()), id: \.offset) { _, row in
+                                    Text("\(row.rawTitle) · \(Day.display(row.day))")
+                                }
+                                if review.rowCount > rows.count {
+                                    Text("… und \(review.rowCount - rows.count) weitere").foregroundStyle(.secondary)
+                                }
+                            }
+                            .font(.caption)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        .font(.callout)
+                    }
                     ForEach(review.candidates, id: \.tmdbId) { candidate in
                         Button {
                             Task {
