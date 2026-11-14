@@ -83,4 +83,66 @@ import WatchSwiftyClient
         #expect(await store.setTMDBToken("eyJ.neu"))
         #expect(model.me?.tmdbToken.suffix == "…wxyz")
     }
+
+    // MARK: „Alle Daten von TMDB neu laden“
+
+    nonisolated static func refresh(running: Bool, done: Int = 0, total: Int = 0, failed: Int = 0, error: String? = nil) -> String {
+        let finished = running ? "" : #","finishedAt":"2026-11-14T10:00:00Z""#
+        let errorField = error.map { #","error":"\#($0)""# } ?? ""
+        return #"{"running":\#(running),"done":\#(done),"total":\#(total),"failed":\#(failed)\#(finished)\#(errorField)}"#
+    }
+
+    @Test func loadReadsTheReloadProgress() async {
+        let transport = FakeTransport()
+        transport.on(.get, "/api/v1/library/refresh", json: 200, Self.refresh(running: false, done: 12, total: 12, failed: 2))
+        let model = await Fixtures.readyModel(transport)
+        let store = AccountStore(api: model.api, app: model)
+        await store.load()
+        #expect(store.libraryRefresh?.done == 12)
+        #expect(store.libraryRefresh?.failed == 2)
+        #expect(store.libraryRefresh?.finishedAt != nil)
+    }
+
+    /// Servers before 0.5.1 have no reload: the section stays hidden and nothing is reported.
+    @Test func olderServerHasNoReload() async {
+        let model = await Fixtures.readyModel(FakeTransport())
+        let store = AccountStore(api: model.api, app: model)
+        await store.load()
+        #expect(store.libraryRefresh == nil)
+        #expect(store.actionError == nil)
+    }
+
+    @Test func startThenPollUntilDoneMarksDataChanged() async {
+        let transport = FakeTransport()
+        let polls = Counter()
+        transport.on(.post, "/api/v1/library/refresh", json: 202, Self.refresh(running: true, total: 3))
+        transport.on(.get, "/api/v1/library/refresh") { _, _ in
+            polls.increment()
+            return FakeTransport.json(200, polls.value < 2 ? Self.refresh(running: true, done: 1, total: 3)
+                                                           : Self.refresh(running: false, done: 3, total: 3))
+        }
+        let model = await Fixtures.readyModel(transport)
+        let store = AccountStore(api: model.api, app: model, pollInterval: .zero)
+        await store.startLibraryRefresh()
+        #expect(store.libraryRefresh?.running == true)
+        let before = model.changeVersion
+        await store.pollLibraryRefresh()
+        #expect(polls.value == 2)
+        #expect(store.libraryRefresh?.running == false)
+        #expect(store.libraryRefresh?.done == 3)
+        #expect(model.changeVersion == before + 1)
+    }
+
+    @Test func refusedStartShowsTheServersMessage() async {
+        let transport = FakeTransport()
+        let message = "Hinterlege zuerst deinen TMDB-Token."
+        transport.on(.post, "/api/v1/library/refresh", json: 422, Fixtures.error("validation", message))
+        let model = await Fixtures.readyModel(transport)
+        let store = AccountStore(api: model.api, app: model, pollInterval: .zero)
+        await store.startLibraryRefresh()
+        #expect(store.actionError?.message == message)
+        #expect(store.libraryRefresh == nil)
+        await store.pollLibraryRefresh()
+        #expect(!transport.requests.contains { $0.path == "/api/v1/library/refresh" && $0.method == .get })
+    }
 }
