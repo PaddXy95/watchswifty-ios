@@ -14,7 +14,8 @@ Apples Beta-Prüfung; Builds laufen nach 90 Tagen ab.
    `https://github.com/PaddXy95/watchswifty/blob/main/docs/datenschutz-ios-app.md`.
 
 ## Pro Version
-1. `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` in `project.yml` erhöhen, `xcodegen generate`.
+1. `MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` erhöhen: in Xcode unter Projekt → Build Settings oder mit
+   `xcrun xcodeproj setting set MARKETING_VERSION 1.1` bzw. `xcrun xcodeproj setting set CURRENT_PROJECT_VERSION 2`.
 2. Xcode: Team wählen, Product → Archive → Distribute App → TestFlight & App Store.
 3. Testinformationen ausfüllen (Texte unten), zur Beta-Prüfung einreichen.
 4. Nach der Freigabe: öffentlichen Link aktivieren und in der Server-README eintragen.
